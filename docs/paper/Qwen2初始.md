@@ -42,3 +42,4 @@ Dense model即多层transformer层，每一层都是由注意力机制和前馈�
 
 与原始的前馈全连接网络FFN不同在于，**MoE FFN由n个独立的FFNs组成，每一个FFN充当一个专家。**
 
+<font color='red'>123</font>
