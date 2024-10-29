@@ -96,3 +96,40 @@ int maxProductPath(vector<vector<int>>& grid) {
 
 ```
 
+## 2024.10.19
+
+[1685. 有序数组中差绝对值之和](https://leetcode.cn/problems/sum-of-absolute-differences-in-a-sorted-array/)
+
+前缀和类型
+```c++
+    class Solution {
+public:
+    vector<int> getSumAbsoluteDifferences(vector<int>& nums) {
+        /*
+        
+        对于num[i]而言  sum( |num[i]-num[j]| )可以分为两个部分进行计算
+                    小于i即左侧的部分  sum(num[i]-num[j])
+                    大于i即右侧的部分  sum(num[j]-num[i])
+                    由此可用前缀和做
+                    (i+1)*num[i] - s[i]
+                    -(len-1-i)*num[i]+ (s[len-1]-s[i])
+        */
+        int n=nums.size();
+        vector<int> res,s;
+        for(int i=0;i<n;i++){
+            if(!i)s.push_back(nums[i]);
+            else s.push_back(s[i-1]+nums[i]);
+        }
+        for(int i=0;i<n;i++){
+            int lef=(i+1)*nums[i]-s[i],
+                rig=-(n-1-i)*nums[i] + s[n-1] - s[i];
+            res.push_back(lef+rig);
+        }
+        return res;
+
+
+
+    }
+};
+
+```
