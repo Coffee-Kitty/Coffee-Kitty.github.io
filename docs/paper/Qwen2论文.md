@@ -1,5 +1,10 @@
+# Qwen2 paper
 
-# Qwen2
+
+
+huggingface里的源代码。 https://github.com/huggingface/transformers/tree/main/src/transformers/models
+
+
 
 ## intro 简介
 
@@ -53,7 +58,7 @@ Dense model即多层transformer层，每一层都是由注意力机制和前馈�
 
 接着，再由**指定的专家**进行计算。  
 
-![image-20241029143735205](Qwen2初始/image-20241029143735205.png)
+![image-20241029143735205](paper/Qwen2初始/image-20241029143735205.png)
 
 
 
@@ -71,7 +76,7 @@ Dense model即多层transformer层，每一层都是由注意力机制和前馈�
 
 
 
-<img src="Qwen2初始/image-20241029152223695.png" alt="image-20241029152223695" style="zoom:80%;" />
+<img src="paper/Qwen2初始/image-20241029152223695.png" alt="image-20241029152223695" style="zoom:80%;" />
 
 ## Pre-Training 预训练
 
@@ -176,4 +181,20 @@ Dense model即多层transformer层，每一层都是由注意力机制和前馈�
 ### RLHF
 
 我们的 RLHF 训练制度包括两个连续阶段：offline and online training。
+
+在离线训练阶段，我们使用预处理的偏好数据集 P 通过直接偏好优化（**DPO）来最大化 yi+ 和 yi- 之间的可能性差异**。
+
+在在线训练阶段，模型利用奖励模型进行即时反馈，实时迭代地完善其性能。具体来说，**我们从当前策略模型中采样多个响应，奖励模型选择最喜欢和最不喜欢的响应，形成用于每个情节中的 DPO 的偏好对**。此外，我们采用在线合并优化器（Online Merging Optimizer）来减轻对齐税，即与将模型生成与人类偏好对齐相关的性能下降。
+
+
+
+## Evaluation评估
+
+......
+
+
+
+
+
+----
 
