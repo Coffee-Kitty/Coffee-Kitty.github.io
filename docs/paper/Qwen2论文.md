@@ -1,7 +1,3 @@
----
-typora-root-url: ..
----
-
 # Qwen2 paper
 
 
@@ -58,11 +54,11 @@ Dense model即多层transformer层，每一层都是由注意力机制和前馈�
 对于每一个输入的token而言，
 
 先由 一个**门控网络** 输出token与各个专家的适配概率 p，
-![image-20241030155013648](/../picture.asset/image-20241030155013648.png)
+![image-20241030155013648](../picture.asset/image-20241030155013648.png)
 
 接着，再由**指定的专家**进行计算。  
 
-![image-20241030155021945](/../picture.asset/image-20241030155021945.png)
+![image-20241030155021945](../picture.asset/image-20241030155021945.png)
 
 > 将Dense model转换为 MoE model的简单直接的策略是：
 >
@@ -78,7 +74,7 @@ Dense model即多层transformer层，每一层都是由注意力机制和前馈�
 
 
 
-![image-20241030155504229](/C:/Users/86185/AppData/Roaming/Typora/typora-user-images/image-20241030155504229.png)
+![image-20241030155504229](../picture.asset/image-20241030155504229.png)
 
 ## Pre-Training 预训练
 
