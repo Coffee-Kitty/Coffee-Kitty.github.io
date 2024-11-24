@@ -417,43 +417,171 @@ class LMConfig(PretrainedConfig):
 
 #### 模型:
 
+```python
+def precompute_pos_cis(dim: int, end: int, theta: float = 10000.0):
+    """
+    预计算旋转位置嵌入（Positional Codes in Complex Space）。
 
+    参数:
+        dim (int): 嵌入维度。
+        end (int): 序列的最大长度。
+        theta (float): 缩放因子，默认为10000.0。
+
+    返回:
+        torch.Tensor: 形状为 (end, dim) 的复数张量，包含预计算的位置嵌入。
+    """
+    # 计算频率向量
+    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
+    
+    # 创建时间步长向量
+    t = torch.arange(end, device=freqs.device)
+    
+    # 计算外积以得到每个时间步长对应的所有频率
+    freqs = torch.outer(t, freqs).float()
+    
+    # 使用极坐标形式创建复数张量
+    pos_cis = torch.polar(torch.ones_like(freqs), freqs)  # complex64
+    
+    return pos_cis
+
+
+def apply_rotary_emb(xq, xk, pos_cis):
+    """
+    将旋转位置嵌入应用到查询和键张量上。
+    
+    参数:
+        xq (torch.Tensor): 查询张量，形状为 (batch_size, seq_len, n_heads, head_dim)。
+        xk (torch.Tensor): 键张量，形状为 (batch_size, seq_len, n_heads, head_dim)。
+        pos_cis (torch.Tensor): 位置码，形状为 (seq_len, head_dim)。
+
+    返回:
+        tuple: 应用旋转嵌入后修改的查询和键张量。
+    """
+    def unite_shape(pos_cis, x):
+        """
+        调整位置码的形状以匹配输入张量的维度。
+
+        参数:
+            pos_cis (torch.Tensor): 位置码，形状为 (seq_len, head_dim)。
+            x (torch.Tensor): 输入张量，其形状用于调整 pos_cis。
+
+        返回:
+            torch.Tensor: 形状调整后的位置码。
+        """
+        ndim = x.ndim
+        assert 0 <= 1 < ndim
+        assert pos_cis.shape == (x.shape[1], x.shape[-1])
+        shape = [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)]
+        return pos_cis.view(*shape)
+
+    # 将查询和键的实部和虚部转换为复数
+    xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
+    xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
+
+    # 匹配位置码的形状与查询和键的形状
+    pos_cis = unite_shape(pos_cis, xq_)
+
+    # 通过乘法应用旋转嵌入
+    xq_out = torch.view_as_real(xq_ * pos_cis).flatten(3)
+    xk_out = torch.view_as_real(xk_ * pos_cis).flatten(3)
+
+    # 返回修改后的查询和键，并恢复原始数据类型
+    return xq_out.type_as(xq), xk_out.type_as(xk)
+
+
+def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
+    """
+    沿头部维度重复键值对。
+
+    参数:
+        x (torch.Tensor): 形状为 (batch_size, seq_len, n_kv_heads, head_dim) 的张量。
+        n_rep (int): 每个键值对的重复次数。
+
+    返回:
+        torch.Tensor: 形状为 (batch_size, seq_len, n_local_heads, head_dim) 的张量，
+                      其中 n_local_heads = n_kv_heads * n_rep。
+    """
+    bs, slen, n_kv_heads, head_dim = x.shape
+    if n_rep == 1:
+        return x
+    return (
+        x[:, :, :, None, :]
+        .expand(bs, slen, n_kv_heads, n_rep, head_dim)
+        .reshape(bs, slen, n_kv_heads * n_rep, head_dim)
+    )
+```
+
+
+
+##### Transformer
 
 ```python
+import torch
+from torch import nn, Tensor
+from typing import Optional
+from transformers import PreTrainedModel
+from .config import LMConfig  # 假设LMConfig定义在config模块中
+from .layers import TransformerBlock, RMSNorm  # 假设TransformerBlock和RMSNorm定义在layers模块中
+from .utils import precompute_pos_cis  # 假设precompute_pos_cis定义在utils模块中
+from transformers.modeling_outputs import CausalLMOutputWithPast
+import math
+
 class Transformer(PreTrainedModel):
     config_class = LMConfig
-    last_loss: Optional[torch.Tensor]
+    last_loss: Optional[torch.Tensor]  # 存储最近一次前向传播的损失值
 
     def __init__(self, params: LMConfig = None):
+        """
+        初始化Transformer模型。
+
+        参数:
+            params (LMConfig): 模型配置参数，默认为None。如果为None，则使用默认配置。
+        """
         super().__init__(params)
         if not params:
-            params = LMConfig()
+            params = LMConfig()  # 如果没有提供配置，则使用默认配置
         self.params = params
-        self.vocab_size = params.vocab_size
-        self.n_layers = params.n_layers
+        self.vocab_size = params.vocab_size  # 词汇表大小
+        self.n_layers = params.n_layers  # 层数量
 
+        # 创建词嵌入层
         self.tok_embeddings = nn.Embedding(params.vocab_size, params.dim)
+        # 创建Dropout层
         self.dropout = nn.Dropout(params.dropout)
-        self.layers = torch.nn.ModuleList()
-        for layer_id in range(self.n_layers):
-            self.layers.append(TransformerBlock(layer_id, params))
+        # 创建多个TransformerBlock层
+        self.layers = torch.nn.ModuleList([TransformerBlock(layer_id, params) for layer_id in range(self.n_layers)])
+        # 创建归一化层
         self.norm = RMSNorm(params.dim, eps=params.norm_eps)
+        # 创建输出层，映射到词汇表大小
         self.output = nn.Linear(params.dim, params.vocab_size, bias=False)
+        # 共享词嵌入层与输出层权重
         self.tok_embeddings.weight = self.output.weight
+        # 预计算位置编码
         pos_cis = precompute_pos_cis(self.params.dim // self.params.n_heads, self.params.max_seq_len)
+        # 注册位置编码作为非持久性缓冲区
         self.register_buffer("pos_cis", pos_cis, persistent=False)
 
+        # 初始化模型权重
         self.apply(self._init_weights)
 
+        # 对特定层的权重进行特殊初始化
         for pn, p in self.named_parameters():
             if pn.endswith('w3.weight') or pn.endswith('wo.weight'):
                 torch.nn.init.normal_(p, mean=0.0, std=0.02 / math.sqrt(2 * params.n_layers))
 
         self.last_loss = None
+        # 创建一个用于存储输出的对象
         self.OUT = CausalLMOutputWithPast()
+        # 设置不拆分的模块名称列表
         self._no_split_modules = [name for name, _ in self.named_modules()]
 
     def _init_weights(self, module):
+        """
+        初始化模型中的线性层和嵌入层的权重。
+
+        参数:
+            module: 要初始化的模块。
+        """
         if isinstance(module, nn.Linear):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
             if module.bias is not None:
@@ -463,7 +591,16 @@ class Transformer(PreTrainedModel):
 
     def forward(self, tokens: Optional[torch.Tensor] = None, targets: Optional[torch.Tensor] = None,
                 kv_cache=False, **keyargs):
-        current_idx = 0
+        """
+        定义模型的前向传播过程。
+
+        参数:
+            tokens (torch.Tensor): 输入的token序列。
+            targets (torch.Tensor): 目标token序列，用于计算损失。
+            kv_cache (bool): 是否使用缓存的键值对来加速推理。
+            **keyargs: 其他关键字参数。
+        """
+        # 处理输入参数
         if 'input_ids' in keyargs:
             tokens = keyargs['input_ids']
         if 'attention_mask' in keyargs:
@@ -471,44 +608,66 @@ class Transformer(PreTrainedModel):
         if 'current_idx' in keyargs:
             current_idx = int(keyargs['current_idx'])
 
+        # 获取批次大小和序列长度
         _bsz, seqlen = tokens.shape
+        # 将token转换为词嵌入
         h = self.tok_embeddings(tokens)
+        # 应用Dropout
         h = self.dropout(h)
+        # 获取当前位置编码
         pos_cis = self.pos_cis[current_idx:current_idx + seqlen]
+        # 通过多层TransformerBlock传递数据
         for idx, layer in enumerate(self.layers):
             h = layer(h, pos_cis, kv_cache)
 
+        # 归一化处理
         h = self.norm(h)
 
+        # 计算损失或输出最终结果
         if targets is not None:
             logits = self.output(h)
-            self.last_loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),
-                                             ignore_index=0, reduction='none')
+            self.last_loss = F.cross_entropy(logits.view(-1,logits.size(-1)), targets.view(-1), ignore_index=0, reduction='none')
         else:
-            logits = self.output(h[:, [-1], :])
+            logits = self.output(h[:, [-1], :])  # 只输出最后一个token的结果
             self.last_loss = None
 
-        self.OUT.__setitem__('logits', logits)
-        self.OUT.__setitem__('last_loss', self.last_loss)
+        # 存储输出
+        self.OUT['logits'] = logits
+        self.OUT['last_loss'] = self.last_loss
         return self.OUT
 
     @torch.inference_mode()
     def generate(self, idx, eos, max_new_tokens, temperature=0.7, top_k=8, stream=True, rp=1., kv_cache=True):
-        # rp: repetition_penalty
+        """
+        生成新的token序列。
+
+        参数:
+            idx (torch.Tensor): 当前token序列。
+            eos (int): 结束符号的索引。
+            max_new_tokens (int): 最大生成新token的数量。
+            temperature (float): 温度参数，控制生成的多样性。
+            top_k (int): 选择前top_k个最高概率的token。
+            stream (bool): 是否以流式方式返回生成的token。
+            rp (float): 重复惩罚因子。
+            kv_cache (bool): 是否使用缓存。
+        """
         index = idx.shape[1]
         init_inference = True
         while idx.shape[1] < max_new_tokens - 1:
+            # 执行前向传播并获取结果
             if init_inference or not kv_cache:
                 inference_res, init_inference = self(idx, kv_cache=kv_cache), False
             else:
                 inference_res = self(idx[:, -1:], kv_cache=kv_cache, current_idx=idx.shape[1] - 1)
 
             logits = inference_res.logits
-            logits = logits[:, -1, :]
+            logits = logits[:, -1, :]  # 取最后一个token的输出
 
+            # 应用重复惩罚
             for token in set(idx.tolist()[0]):
                 logits[:, token] /= rp
 
+            # 根据温度参数调整logits，并可能应用top-k过滤
             if temperature == 0.0:
                 _, idx_next = torch.topk(logits, k=1, dim=-1)
             else:
@@ -520,31 +679,312 @@ class Transformer(PreTrainedModel):
                 probs = F.softmax(logits, dim=-1)
                 idx_next = torch.multinomial(probs, num_samples=1, generator=None)
 
-            if idx_next == eos:
+            # 如果下一个token是结束符号，则停止生成
+            if idx_next.item() == eos:
                 break
 
+            # 追加新生成的token到序列中
             idx = torch.cat((idx, idx_next), dim=1)
             if stream:
-                yield idx[:, index:]
+                yield idx[:, index:]  # 流式返回新生成的部分
 
         if not stream:
-            yield idx[:, index:]
+            yield idx[:, index:]  # 返回所有新生成的部分
 
     @torch.inference_mode()
     def eval_answer(self, idx):
+        """
+        在给定的上下文中评估答案。
+
+        参数:
+            idx (torch.Tensor): 输入的token序列。
+        """
+        # 如果输入序列超过最大长度，则截断
+        idx_cond = idx if idx.size(1) <= self.params.max_seq_len else idx[:, -self.params.max_seq_len:]
+        inference_res = self(idx_cond)  # 执行前向传播
+        logits = inference_res.logits
+        logits = logits[:, -1, :]  # 取最后一个token的输出
+        return logits
+```
+
+##### TransformerBlock
+
+上面提及的transformerBlock类如下：
+
+```python
+import torch
+from torch import nn
+
+class TransformerBlock(nn.Module):
+    def __init__(self, layer_id: int, args: LMConfig):
+        """
+        初始化一个TransformerBlock层。
+
+        参数:
+            layer_id (int): 当前层的ID。
+            args (LMConfig): 模型配置参数。
+        """
+        super().__init__()
+        self.n_heads = args.n_heads  # 注意头的数量
+        self.dim = args.dim  # 模型的隐藏维度
+        self.head_dim = args.dim // args.n_heads  # 每个注意头的维度
+        self.attention = Attention(args)  # 初始化注意力机制
+
+        self.layer_id = layer_id  # 当前层的ID
+        self.attention_norm = RMSNorm(args.dim, eps=args.norm_eps)  # 初始化注意力层的归一化层
+        self.ffn_norm = RMSNorm(args.dim, eps=args.norm_eps)  # 初始化前馈网络层的归一化层
+
+        if args.use_moe:
+            # 如果配置中启用了混合专家（MoE），则使用MOE前馈网络
+            self.feed_forward = MOEFeedForward(args)
+        else:
+            # 否则，使用普通的前馈网络
+            self.feed_forward = FeedForward(
+                dim=args.dim,
+                hidden_dim=args.hidden_dim,
+                multiple_of=args.multiple_of,
+                dropout=args.dropout,
+            )
+
+    def forward(self, x, pos_cis, kv_cache=False):
+        """
+        定义TransformerBlock层的前向传播过程。
+
+        参数:
+            x (torch.Tensor): 输入张量，形状为 [batch_size, seq_len, dim]。
+            pos_cis (torch.Tensor): 位置编码，形状为 [seq_len, head_dim]。
+            kv_cache (bool): 是否使用缓存的键值对来加速推理。
+        """
+        # 注意力机制
+        h = x + self.attention(self.attention_norm(x), pos_cis, kv_cache)
+        # 前馈网络
+        out = h + self.feed_forward(self.ffn_norm(h))
+        return out
+```
+
+##### Attention
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import math
+
+class Attention(nn.Module):
+    """
+    	分组自注意力       n_heads / n_kv_heads 个组
+    """
+    def __init__(self, args: LMConfig):
+        super().__init__()
+        # 初始化关键参数
+        self.n_kv_heads = args.n_heads if args.n_kv_heads is None else args.n_kv_heads
+        assert args.n_heads % self.n_kv_heads == 0
+        self.n_local_heads = args.n_heads
+        self.n_local_kv_heads = self.n_kv_heads
+        self.n_rep = self.n_local_heads // self.n_local_kv_heads
+        self.head_dim = args.dim // args.n_heads
+        
+        # 定义线性变换层
+    	# 分组自注意力
+        self.wq = nn.Linear(args.dim, args.n_heads * self.head_dim, bias=False)
+        self.wk = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
+        self.wv = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
+        self.wo = nn.Linear(args.n_heads * self.head_dim, args.dim, bias=False)
+        
+        # 初始化缓存
+        self.k_cache, self.v_cache = None, None
+        
+        # 定义dropout层
+        self.attn_dropout = nn.Dropout(args.dropout)
+        self.resid_dropout = nn.Dropout(args.dropout)
+        self.dropout = args.dropout
+        
+        # 检查是否支持Flash Attention
+        self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention') and args.flash_attn
+
+        # 创建掩码以防止未来信息泄露
+        mask = torch.full((1, 1, args.max_seq_len, args.max_seq_len), float("-inf"))
+        mask = torch.triu(mask, diagonal=1)
+        self.register_buffer("mask", mask, persistent=False)
+
+    def forward(self, x: torch.Tensor, pos_cis: torch.Tensor, kv_cache=False):
+        """
+        前向传播函数，计算自注意力机制。
+
+        参数:
+            x (torch.Tensor): 输入张量，形状为 (batch_size, seq_len, dim)。
+            pos_cis (torch.Tensor): 预计算的位置嵌入，形状为 (seq_len, head_dim)。
+            kv_cache (bool): 是否使用键值缓存，默认为False。
+
+        返回:
+            torch.Tensor: 自注意力机制的输出张量，形状为 (batch_size, seq_len, dim)。
+        """
+        bsz, seqlen, _ = x.shape
+
+        # 计算查询、键和值
+        xq, xk, xv = self.wq(x), self.wk(x), self.wv(x)
+
+        # 调整形状以便进行多头注意力计算
+        xq = xq.view(bsz, seqlen, self.n_local_heads, self.head_dim)
+        xk = xk.view(bsz, seqlen, self.n_local_kv_heads, self.head_dim)
+        xv = xv.view(bsz, seqlen, self.n_local_kv_heads, self.head_dim)
+
+        # 应用旋转位置嵌入
+        xq, xk = apply_rotary_emb(xq, xk, pos_cis)
+
+        # 如果启用kv缓存，则在评估模式下使用缓存
+        if kv_cache and self.eval():
+            if seqlen == 1 and all(cache is not None for cache in (self.k_cache, self.v_cache)):
+                xk = torch.cat((self.k_cache, xk), dim=1)
+                xv = torch.cat((self.v_cache, xv), dim=1)
+            self.k_cache, self.v_cache = xk, xv
+
+        # 重复键和值以匹配本地头部数量
+        xk = repeat_kv(xk, self.n_rep)  # 形状变为 (bs, seqlen, n_local_heads, head_dim)
+        xv = repeat_kv(xv, self.n_rep)  # 形状变为 (bs, seqlen, n_local_heads, head_dim)
+
+        # 转置以便进行点积注意力计算
+        xq = xq.transpose(1, 2)
+        xk = xk.transpose(1, 2)
+        xv = xv.transpose(1, 2)
+
+        # 根据条件选择使用Flash Attention或标准注意力机制
+        if self.flash and seqlen != 1:
+            output = torch.nn.functional.scaled_dot_product_attention(xq, xk, xv, attn_mask=None,
+                                                                      dropout_p=self.dropout if self.training else 0.0,
+                                                                      is_causal=True)
+        else:
+            scores = torch.matmul(xq, xk.transpose(2, 3)) / math.sqrt(self.head_dim)
+            scores = scores + self.mask[:, :, :seqlen, :seqlen]  # 添加掩码以防止未来信息泄露
+            scores = F.softmax(scores.float(), dim=-1).type_as(xq)
+            scores = self.attn_dropout(scores)
+            output = torch.matmul(scores, xv)  # (bs, n_local_heads, seqlen, head_dim)
+
+        # 调整输出形状并恢复原始顺序
+        output = output.transpose(1, 2).contiguous().view(bsz, seqlen, -1)
+
+        # 最终线性变换和残差dropout
+        output = self.wo(output)
+        output = self.resid_dropout(output)
+        return output
+
 ```
 
 
 
+##### FeedForward
+
+```python
+class FeedForward(nn.Module):
+    def __init__(self, dim: int, hidden_dim: int, multiple_of: int, dropout: float):
+        super().__init__()
+        if hidden_dim is None:
+            hidden_dim = 4 * dim
+            hidden_dim = int(2 * hidden_dim / 3)
+            hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
+        self.w1 = nn.Linear(dim, hidden_dim, bias=False)
+        self.w2 = nn.Linear(hidden_dim, dim, bias=False)
+        self.w3 = nn.Linear(dim, hidden_dim, bias=False)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        return self.dropout(self.w2(F.silu(self.w1(x)) * self.w3(x)))
+```
 
 
 
+##### MOEFeedForward
+
+```python
+class MoEGate(nn.Module):
+    def __init__(self, config: LMConfig):
+        super().__init__()
+        # 初始化配置参数
+        self.config = config
+        self.top_k = config.num_experts_per_tok  # 每个token分配的expert数量
+        self.n_routed_experts = config.n_routed_experts  # 总共的expert数量
+        
+        self.scoring_func = config.scoring_func  # 得分函数类型
+        self.alpha = config.aux_loss_alpha  # 辅助损失权重
+        self.seq_aux = config.seq_aux  # 是否使用序列辅助损失
+        
+        self.norm_topk_prob = config.norm_topk_prob  # 是否归一化top-k概率
+        self.gating_dim = config.dim  # 输入维度
+        
+        # 定义权重矩阵
+        self.weight = nn.Parameter(torch.empty((self.n_routed_experts, self.gating_dim)))
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        import torch.nn.init as init
+        # 使用Kaiming均匀分布初始化权重
+        init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+
+    def forward(self, hidden_states):
+        """
+        前向传播函数，计算每个token对应的expert得分并选择top-k expert。
+
+        参数:
+            hidden_states (torch.Tensor): 输入张量，形状为 (batch_size, seq_len, dim)。
+
+        返回:
+            tuple: 包含三个元素的元组：
+                   - topk_idx (torch.Tensor): 形状为 (batch_size * seq_len, top_k)，表示选中的expert索引。
+                   - topk_weight (torch.Tensor): 形状为 (batch_size * seq_len, top_k)，表示选中的expert权重。
+                   - aux_loss (torch.Tensor 或 None): 辅助损失，如果alpha > 0则返回，否则返回None。
+        """
+        bsz, seq_len, h = hidden_states.shape
+
+        # 将输入张量展平
+        hidden_states = hidden_states.view(-1, h)
+        
+        # 计算每个token到每个expert的得分
+        logits = F.linear(hidden_states, self.weight, None)
+        
+        # 根据得分函数计算得分
+        if self.scoring_func == 'softmax':
+            scores = logits.softmax(dim=-1)
+        else:
+            raise NotImplementedError(f'不支持的评分函数 {self.scoring_func} 用于MoE门控')
+        
+        # 获取top-k的得分和对应的expert索引
+        topk_weight, topk_idx = torch.topk(scores, k=self.top_k, dim=-1, sorted=False)
+        
+        # 如果需要归一化top-k的概率
+        if self.top_k > 1 and self.norm_topk_prob:
+            denominator = topk_weight.sum(dim=-1, keepdim=True) + 1e-20
+            topk_weight = topk_weight / denominator
+        
+        # 计算辅助损失（仅在训练阶段且alpha大于0时）
+        if self.training and self.alpha > 0.0:
+            scores_for_aux = scores
+            aux_topk = self.top_k
+            topk_idx_for_aux_loss = topk_idx.view(bsz, -1)
+            
+            if self.seq_aux:
+                # 使用序列辅助损失
+                scores_for_seq_aux = scores_for_aux.view(bsz, seq_len, -1)
+                ce = torch.zeros(bsz, self.n_routed_experts, device=hidden_states.device)
+                ce.scatter_add_(1, topk_idx_for_aux_loss,
+                               torch.ones(bsz, seq_len * aux_topk, device=hidden_states.device)).div_(
+                    seq_len * aux_topk / self.n_routed_experts)
+                aux_loss = (ce * scores_for_seq_aux.mean(dim=1)).sum(dim=1).mean() * self.alpha
+            else:
+                # 使用标准辅助损失
+                mask_ce = F.one_hot(topk_idx_for_aux_loss.view(-1), num_classes=self.n_routed_experts)
+                ce = mask_ce.float().mean(0)
+                Pi = scores_for_aux.mean(0)
+                fi = ce * self.n_routed_experts
+                aux_loss = (Pi * fi).sum() * self.alpha
+        else:
+            aux_loss = None
+        
+        return topk_idx, topk_weight, aux_loss
+```
 
 
 
-
-
-经典RMSNorm:
+##### RMSNorm
 
 ![image-20241114154439329](../picture.asset/image-20241114154439329.png)
 
@@ -565,9 +1005,9 @@ class RMSNorm(torch.nn.Module):
 
 
 
-
-
 ### 预训练
+
+ `python 1-pretrain.py` 执行预训练，得到 `pretrain_*.pth` 作为预训练的输出权重
 
 什么参数也没改，使用2张A800 80G直接开始train，最终训练时间为24小时左右
 
@@ -575,15 +1015,1239 @@ class RMSNorm(torch.nn.Module):
 torchrun --nproc_per_node 2 1-pretrain.py --use_wandb
 ```
 
+![image-20241121212830766](../picture.asset/image-20241121212830766.png)
+
 https://wandb.ai/coffeecat-university/MiniMind-Pretrain?nw=nwusercoffeecat
 
 ![image-20241121144557952](../picture.asset/image-20241121144557952.png)
 
+预训练代码如下:
 
+```python
+import os
+import platform
+import argparse
+import time
+import math
+import warnings
+
+import pandas as pd
+import torch
+import torch.distributed as dist
+from torch import optim
+from torch.nn.parallel import DistributedDataParallel
+from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.utils.data import DataLoader, DistributedSampler
+from contextlib import nullcontext
+
+from transformers import AutoTokenizer
+
+from model.model import Transformer
+from model.LMConfig import LMConfig
+from model.dataset import PretrainDataset
+
+warnings.filterwarnings('ignore')
+
+
+def Logger(content):
+    if not ddp or dist.get_rank() == 0:
+        print(content)
+
+
+def get_lr(it, all):
+    warmup_iters = args.warmup_iters
+    lr_decay_iters = all
+    min_lr = args.learning_rate / 10
+
+    if it < warmup_iters:
+        return args.learning_rate * it / warmup_iters
+    if it > lr_decay_iters:
+        return min_lr
+    decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+    assert 0 <= decay_ratio <= 1
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+    return min_lr + coeff * (args.learning_rate - min_lr)
+
+
+def train_epoch(epoch, wandb):
+    start_time = time.time()
+    for step, (X, Y, loss_mask) in enumerate(train_loader):
+        X = X.to(args.device)
+        Y = Y.to(args.device)
+        loss_mask = loss_mask.to(args.device)
+
+        lr = get_lr(epoch * iter_per_epoch + step, args.epochs * iter_per_epoch)
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
+        with ctx:
+            out = model(X, Y)
+            loss = out.last_loss / args.accumulation_steps
+            loss_mask = loss_mask.view(-1)
+            loss = torch.sum(loss * loss_mask) / loss_mask.sum()
+
+        scaler.scale(loss).backward()
+
+        if (step + 1) % args.accumulation_steps == 0:
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+
+            scaler.step(optimizer)
+            scaler.update()
+
+            optimizer.zero_grad(set_to_none=True)
+
+        if step % args.log_interval == 0:
+            spend_time = time.time() - start_time
+            Logger(
+                'Epoch:[{}/{}]({}/{}) loss:{:.3f} lr:{:.7f} epoch_Time:{}min:'.format(
+                    epoch,
+                    args.epochs,
+                    step,
+                    iter_per_epoch,
+                    loss.item() * args.accumulation_steps,
+                    optimizer.param_groups[-1]['lr'],
+                    spend_time / (step + 1) * iter_per_epoch // 60 - spend_time // 60))
+
+            if (wandb is not None) and (not ddp or dist.get_rank() == 0):
+                wandb.log({"loss": loss.item() * args.accumulation_steps,
+                           "lr": optimizer.param_groups[-1]['lr'],
+                           "epoch_Time": spend_time / (step + 1) * iter_per_epoch // 60 - spend_time // 60})
+
+        if (step + 1) % args.save_interval == 0 and (not ddp or dist.get_rank() == 0):
+            model.eval()
+            moe_path = '_moe' if lm_config.use_moe else ''
+            ckp = f'{args.save_dir}/pretrain_{lm_config.dim}{moe_path}.pth'
+
+            if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+                state_dict = model.module.state_dict()
+            else:
+                state_dict = model.state_dict()
+
+            torch.save(state_dict, ckp)
+            model.train()
+
+
+def init_model():
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    tokenizer = AutoTokenizer.from_pretrained('./model/minimind_tokenizer')
+
+    model = Transformer(lm_config).to(args.device)
+    # moe_path = '_moe' if lm_config.use_moe else ''
+
+    Logger(f'LLM总参数量：{count_parameters(model) / 1e6:.3f} 百万')
+    return model, tokenizer
+
+
+def init_distributed_mode():
+    if not ddp: return
+    global ddp_local_rank, DEVICE
+
+    dist.init_process_group(backend="nccl")
+    ddp_rank = int(os.environ["RANK"])
+    ddp_local_rank = int(os.environ["LOCAL_RANK"])
+    ddp_world_size = int(os.environ["WORLD_SIZE"])
+    DEVICE = f"cuda:{ddp_local_rank}"
+    torch.cuda.set_device(DEVICE)
+
+
+# torchrun --nproc_per_node 2 1-pretrain.py
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="MiniMind Pretraining")
+    parser.add_argument("--out_dir", type=str, default="out", help="Output directory")
+    parser.add_argument("--epochs", type=int, default=20, help="Number of epochs")
+    parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
+    parser.add_argument("--learning_rate", type=float, default=2e-4, help="Learning rate")
+    parser.add_argument("--device", type=str, default="cuda:0" if torch.cuda.is_available() else "cpu",
+                        help="Device to use")
+    parser.add_argument("--dtype", type=str, default="bfloat16", help="Data type")
+    parser.add_argument("--use_wandb", action="store_true", help="Use Weights & Biases")
+    parser.add_argument("--wandb_project", type=str, default="MiniMind-Pretrain", help="Weights & Biases project name")
+    parser.add_argument("--num_workers", type=int, default=1, help="Number of workers for data loading")
+    parser.add_argument("--data_path", type=str, default="./dataset/pretrain_data.csv", help="Path to training data")
+    parser.add_argument("--ddp", action="store_true", help="Use DistributedDataParallel")
+    parser.add_argument("--accumulation_steps", type=int, default=8, help="Gradient accumulation steps")
+    parser.add_argument("--grad_clip", type=float, default=1.0, help="Gradient clipping threshold")
+    parser.add_argument("--warmup_iters", type=int, default=0, help="Number of warmup iterations")
+    parser.add_argument("--log_interval", type=int, default=100, help="Logging interval")
+    parser.add_argument("--save_interval", type=int, default=1000, help="Model saving interval")
+    parser.add_argument('--local_rank', type=int, default=-1, help='local rank for distributed training')
+
+    args = parser.parse_args()
+
+    lm_config = LMConfig()
+    max_seq_len = lm_config.max_seq_len
+    args.save_dir = os.path.join(args.out_dir)
+    os.makedirs(args.save_dir, exist_ok=True)
+    os.makedirs(args.out_dir, exist_ok=True)
+    tokens_per_iter = args.batch_size * max_seq_len
+    torch.manual_seed(1337)
+    device_type = "cuda" if "cuda" in args.device else "cpu"
+
+    args.wandb_run_name = f"MiniMind-Pretrain-Epoch-{args.epochs}-BatchSize-{args.batch_size}-LearningRate-{args.learning_rate}"
+
+    ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast()
+
+    ddp = int(os.environ.get("RANK", -1)) != -1  # is this a ddp run?
+    ddp_local_rank, DEVICE = 0, "cuda:0"
+    if ddp:
+        init_distributed_mode()
+        args.device = torch.device(DEVICE)
+
+    if args.use_wandb and (not ddp or ddp_local_rank == 0):
+        import wandb
+
+        wandb.init(project=args.wandb_project, name=args.wandb_run_name)
+    else:
+        wandb = None
+
+    model, tokenizer = init_model()
+    df = pd.read_csv(args.data_path)
+    df = df.sample(frac=1.0)
+    train_ds = PretrainDataset(df, tokenizer, max_length=max_seq_len)
+    train_sampler = DistributedSampler(train_ds) if ddp else None
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=args.batch_size,
+        pin_memory=True,
+        drop_last=False,
+        shuffle=False,
+        num_workers=args.num_workers,
+        sampler=train_sampler
+    )
+
+    scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype in ['float16', 'bfloat16']))
+    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+
+    if False and platform.system() != 'Windows' and float(torch.__version__.split('.')[0]) >= 2:
+        Logger("compiling the model... (takes a ~minute)")
+        unoptimized_model = model
+        model = torch.compile(model)
+
+    if ddp:
+        model._ddp_params_and_buffers_to_ignore = {"pos_cis"}
+        model = DistributedDataParallel(model, device_ids=[ddp_local_rank])
+
+    iter_per_epoch = len(train_loader)
+    for epoch in range(args.epochs):
+        train_epoch(epoch, wandb)
+```
+
+
+
+然后接下来是测试预训练的效果的代码:
+
+```python
+import random
+import time
+
+import numpy as np
+import torch
+import warnings
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from model.model import Transformer
+from model.LMConfig import LMConfig
+
+warnings.filterwarnings('ignore')
+
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+def init_model(lm_config):
+    tokenizer = AutoTokenizer.from_pretrained('./model/minimind_tokenizer')
+    model_from = 1  # 1从权重，2用transformers
+
+    if model_from == 1:
+        moe_path = '_moe' if lm_config.use_moe else ''
+        ckp = f'./out/pretrain_{lm_config.dim}{moe_path}.pth'
+
+        model = Transformer(lm_config)
+        state_dict = torch.load(ckp, map_location=device)
+
+        # 处理不需要的前缀
+        unwanted_prefix = '_orig_mod.'
+        for k, v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+
+        for k, v in list(state_dict.items()):
+            if 'mask' in k:
+                del state_dict[k]
+
+        # 加载到模型中
+        model.load_state_dict(state_dict, strict=False)
+    else:
+        model = AutoModelForCausalLM.from_pretrained('minimind', trust_remote_code=True)
+    model = model.to(device)
+
+    print(f'模型参数: {count_parameters(model) / 1e6} 百万 = {count_parameters(model) / 1e9} B (Billion)')
+    return model, tokenizer
+
+
+def setup_seed(seed):
+    random.seed(seed)  # 设置 Python 的随机种子
+    np.random.seed(seed)  # 设置 NumPy 的随机种子
+    torch.manual_seed(seed)  # 设置 PyTorch 的随机种子
+    torch.cuda.manual_seed(seed)  # 为当前 GPU 设置随机种子（如果有）
+    torch.cuda.manual_seed_all(seed)  # 为所有 GPU 设置随机种子（如果有）
+    torch.backends.cudnn.deterministic = True  # 确保每次返回的卷积算法是确定的
+    torch.backends.cudnn.benchmark = False  # 关闭 cuDNN 的自动调优，避免不确定性
+
+
+if __name__ == "__main__":
+    # -----------------------------------------------------------------------------
+    out_dir = 'out'
+    start = ""
+    temperature = 0.7
+    top_k = 8
+    setup_seed(1337)
+    # device = 'cpu'
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    dtype = 'bfloat16'
+    max_seq_len = 512
+    lm_config = LMConfig()
+    lm_config.max_seq_len = max_seq_len
+    # -----------------------------------------------------------------------------
+
+    model, tokenizer = init_model(lm_config)
+    model = model.eval()
+    # int(input('输入0自动测试，输入1问题测试：'))
+    answer_way = 0
+    stream = True
+
+    prompt_datas = [
+        '椭圆和圆的区别',
+        '中国关于马克思主义基本原理',
+        '人类大脑的主要功能是',
+        '万有引力是',
+        '世界上人口最多的国家是',
+        'DNA的全称是',
+        '数学中π的值大约是',
+        '世界上最高的山峰是',
+        '太阳系中最大的行星是',
+        '二氧化碳的化学分子式是',
+        '地球上最大的动物是',
+        '地球自转一圈大约需要',
+        '杭州市的美食有',
+        '江苏省的最好的大学',
+    ]
+
+    qa_index = 0
+    while True:
+        start = time.time()
+        if answer_way == 1:
+            # run generation
+            prompt = input('用户：')
+        else:
+            if qa_index >= len(prompt_datas):
+                break
+            prompt = prompt_datas[qa_index]
+            print('问题：', prompt)
+            qa_index += 1
+
+        prompt = tokenizer.bos_token + prompt
+        x = tokenizer(prompt).data['input_ids']
+        x = (torch.tensor(x, dtype=torch.long, device=device)[None, ...])
+
+        with torch.no_grad():
+            res_y = model.generate(x, tokenizer.eos_token_id, max_new_tokens=max_seq_len, temperature=temperature,
+                                   top_k=top_k, stream=stream)
+            print('回答：', end='')
+            try:
+                y = next(res_y)
+            except StopIteration:
+                print("No answer")
+                continue
+
+            history_idx = 0
+            while y != None:
+                answer = tokenizer.decode(y[0].tolist())
+                if answer and answer[-1] == '�':
+                    try:
+                        y = next(res_y)
+                    except:
+                        break
+                    continue
+                # print(answer)
+                if not len(answer):
+                    try:
+                        y = next(res_y)
+                    except:
+                        break
+                    continue
+
+                print(answer[history_idx:], end='', flush=True)
+                try:
+                    y = next(res_y)
+                except:
+                    break
+                history_idx = len(answer)
+                if not stream:
+                    break
+
+            print('\n')
+
+        end = time.time()
+        print(end - start, 's')
+```
+
+- `python 0-eval_pretrain.py`测试预训练模型的接龙效果
+
+测试效果图如下:
+
+![image-20241121213501823](../picture.asset/image-20241121213501823.png)
+
+```text
+模型参数: 26.878464 百万 = 0.026878464 B (Billion)
+问题： 椭圆和圆的区别
+回答：
+椭圆和圆的区别：椭圆的外形比较大，圆的内壁比较平整，圆的中间没有明显的凹凸感，所以椭圆和圆的外壁比较平整，圆的内壁比较光滑，圆的内壁比较平滑，圆的内壁比较光滑。
+椭圆和圆的区别：椭圆和圆的内壁比较明显，圆的外壁比较光滑，圆的内壁比较平整，圆的内壁比较光滑，圆的内壁比较光滑。
+椭圆和圆的区别：椭圆的外壁比较光滑，圆的内壁比较光滑，圆的内壁比较光滑，圆的外壁比较光滑，圆的圆的内壁比较光滑，圆的内壁比较光滑。
+椭圆和圆的外壁比较光滑，圆的内壁比较光滑，圆的内壁比较光滑，圆的内壁比较光滑，圆的内壁比较光滑。
+
+2.048009157180786 s
+问题： 中国关于马克思主义基本原理
+回答：概论和中国特色社会主义理论体系概论的论文，是马克思主义理论研究的重要组成部分。在马克思主义基本理论体系中，中国的哲学、经济学和政治学等一系列学科的理论研究，都在马克思主义中国化的理论研究中存在着较大的分量和深度。
+中国共产党马克思主义基本原理概论的论文，是马克思主义基本原理的集成体系，是马克思主义基本理论体系的理论体系，是马克思主义基本原理的理论组成部分。在马克思主义基本原理中，中国共产党在马克思主义基本原理中具有重要的理论价值和重要的现实应用价值，在马克思主义基本原理中，以马克思主义为主导的中国共产党，具有重要的理论和实践基础。在马克思主义基本原理中，中国共产党是马克思主义基本原理的理论体系，是马克思主义理论学科体系中的重要组成部分。
+马克思主义基本原理与中国传统文化相比，马克思主义基本原理的理论体系是“理论与实践”结合，在理论与实践的结合中，理论与实践的结合是“理论与实践”相结合，而理论与实践相结合则是“理论与实践相结合”。
+
+1.9480769634246826 s
+问题： 人类大脑的主要功能是
+回答：记忆。人类大脑中的神经元在人体内分泌出一种叫“脑电波”的物质，称为脑电波。脑电波在人体的脑组织中具有频率变化的特性，称为频率变化。
+1、脑电波可以分为两类：一类是脑电波，另一类是脑电波，如脑电波对人的记忆，脑电波对人体的记忆，脑电波对人的记忆，脑电波对人体的记忆，脑电波对人体的记忆，脑电波对人体的记忆，脑电波对人的记忆，脑电波对人的记忆，脑电波对人体的记忆，脑电波对人的记忆，脑电波对人的记忆，脑电波对人体的记忆，脑电波对人的记忆，脑电波对人的行为，脑电波对人体的记忆，脑电波对人的行为，脑电波对于人的行为，脑电波对人的行为，脑电波对人的行为，脑电波对人体的行为。
+2、脑电波对人的行为分为两类，一类是人在工作的时候，对人的行为，它是人在工作的时候，对人的行为，它是人在工作的时候，对人的行为。人在工作的时候，对人的行为，它是人在工作的时候，对人的行为，它是人在工作的时候，对人的行为，它是人在工作的时候，对人的行为。
+
+2.1810011863708496 s
+问题： 万有引力是
+回答：全球最大的电动汽车集团之一，其全球总销量超过6亿辆。万有引力是全球最大的电动汽车集团之一，其全球总销量超过6亿辆。
+2014年3月，万有引力发布了一份新一代电动汽车的最新报告，该报告显示，该报告还发布了2015年全球最大的电动汽车集团之一，其中包括万有引力在内的300家汽车制造商。
+万有引力表示，其全球最大的电动汽车集团之一，其最新数据显示，2015年全球销量达到5.5亿辆。
+
+0.8550448417663574 s
+问题： 世界上人口最多的国家是
+回答：墨西哥，最大的国家是墨西哥。世界上有70余万人口，其中少数民族人口超过1亿，是世界上人口最多的国家之一。
+墨西哥的国家有：墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城等。
+墨西哥人口最多的国家有：墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城。
+墨西哥国家的国家有：墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨西哥城、墨
+
+3.2232298851013184 s
+问题： DNA的全称是
+回答：基因序列，它是由基因的组成部分。基因序列可以分为基因序列和基因序列，基因序列可分为基因序列的单位、基因序列的单位和基因序列的单位。
+基因序列的结构是：
+1、序列：
+基因序列是基因中一条线，其内在结构是：
+1、基因序列的内在结构是：
+基因序列是基因序列的内在结构。
+2、基因序列是：
+基因序列是基因的内在结构，其内在结构是：
+1、基因序列是：
+基因序列是：
+1、基因序列是：
+基因序列的内在结构是：
+1、基因序列是：
+基因序列是：
+1、基因序列是：
+基因序列是：
+1、基因序列是：
+2、基因序列是：
+基因序列是：
+1、基因序列是：
+基因序列是：
+1、基因序列的内在结构是：
+DNA序列是：
+1、基因序列的内在结构是：
+DNA序列是：
+1、基因序列是：
+DNA序列的内在结构是：
+1、基因序列是：
+DNA序列是：
+1、基因序列是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+1、基因序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+DNA序列的内在结构是：
+D
+
+3.228148937225342 s
+问题： 数学中π的值大约是
+回答：0，如果在1，π的值为0，则π的值为0，如果在1，π的值为0，则π的值为0，如果在1，π的值为0，则π的值为0，如果在1，π的值为0，则π的值为2，因此π的值为0，如果在10，π的值为2，因为π的值为1，因此π的值为2。
+在2中，π与π的值是0，如果在1，π的值是0，那么π的值为1，因此π的值为1，由于π的值是0，π的值为2，因此π的值为1。
+在2中，π的值为0，如果在2中，π的值为3，那么π的值为2。
+如果在3，π的值为1，那么π的值为2。
+如果在4，π的值为3，那么π的值为4。
+如果在4，π的值为0，那么π的值为1。
+如果在4，π的值为1，那么π的值为10。
+如果在6，π的值为2，那么π的值为2。
+如果在8，π的值为3，那么π的值为0。
+如果在8，π的值为5，那么π的值为1。
+如果在8，π的值为0，那么π的值为1。
+如果在9，π的值为2，那么π的值为1。
+如果在10，π的值为2，那么π的值为0。
+如果在10，π的值为5，那么π的值为2。
+如果在10，π的值为1，那么π的值为0。
+
+2.795119285583496 s
+问题： 世界上最高的山峰是
+回答：“西部山脉”，“西南山脉”和“西北山脉”之间有“西部山脉”。
+“西南山脉”是西北山脉中最著名的山峰。它是西南山脉的最高峰，也是西南山脉最高的山峰。
+西南山脉在北纬20.5度的山峰中，位于南纬14.2度的东南方向，是西南山脉中的第一个山峰，是我国西北地区唯一的山峰，也是我国西南山脉中唯一的山峰。
+在西南山脉中，“西南山脉”是西南山脉最重要的山脉之一，也是我国西南山脉中唯一的山脉，也是西南山脉中唯一的极高峰，是我国西南山脉中唯一的山峰，也是我国西南山脉中唯一的山脉。
+在西南山脉中，“西南山脉”也是我国西南山脉中唯一的山峰，也是我国西南山脉中最高的山峰，也是我国西南山脉中唯一的山峰。
+在西南山脉中，“西南山脉”是西北山脉中唯一的山峰，也是我国西南山脉中唯一的山脉。
+在西南山脉中唯一的山峰，位于南纬14.2度的东南山脉中唯一的山脉中唯一的山脉。在西南山脉中唯一的山峰，位于南纬14.2度的东南山脉中唯一的山脉中唯一的山峰。
+
+2.84102725982666 s
+问题： 太阳系中最大的行星是
+回答：白垩纪星系，在地球上，地球上行星的星系比地球上行星大，而白垩纪星系比地球上的行星更大，因此白垩纪星系的面积是地球上最大的。
+白垩纪星系的面积大概是地球上面积的3倍，而白垩纪星系是面积的4倍。白垩纪星系的面积大概是地球上最大，而白垩纪星系的面积是地球上最小的。
+
+0.6513104438781738 s
+问题： 二氧化碳的化学分子式是
+回答：CO2。CO2的化学性质与二氧化碳的化学性质不同。
+二氧化碳是无色、无味的气体，具有较强的腐蚀性，所以在使用时要避免与其他化学物品接触，以免对皮肤造成严重的刺激。二氧化碳在空气中会吸收二氧化碳，因此在使用时要避免与其它物质接触。二氧化碳在空气中会变成粉末状，如果在空气中吸收二氧化碳，二氧化碳会吸收二氧化碳，所以在使用时要避免与其它物质接触，以免对身体造成严重危害。另外二氧化碳在储存时应避免与空气中的氧发生反应，以免氧化。
+二氧化碳在储存时要避免与氧气接触，避免与氧气发生反应，以免对皮肤造成严重的刺激。二氧化碳在储存时要避免与氧气接触，以免对皮肤造成严重的刺激。二氧化碳在储存时要避免与氧气接触，以免对眼睛造成损伤。
+
+1.5668373107910156 s
+问题： 地球上最大的动物是
+回答：雄性，雌性的动物有4只。
+地球上的生物有3种，分别是雄性和雌性：雌性为雄动物，雌性为雌性，雌性为雌性，雄性为雌性。雌性雌性为雄性，雌性为雌性，雌性为雄性。
+地球上有很多的大雄蛛，它们在地球上的生活和活动是很有可能的。
+世界上有3种雌性动物是：雄性动物，雌性是雌性动物。
+雌性动物是：雄性动物是雌性动物，雌性是雌性动物。
+雌性动物是：雌性动物是雄性动物，雌性雌性动物是雄性动物。
+雌性动物是雌性动物
+雌性动物
+雄性动物是指雌性动物，雄性动物雌性动物。
+雄性动物是雄性动物。
+地球上的动物是雄性动物，雌性动物是雌性动物。
+地球上的动物是雌性动物，雄性动物是雌性动物。
+地球上还有一种雌性动物，雌性动物是雄性动物，雌性动物是雌性动物。
+地球上有雄性动物，雄性动物是雌性动物。
+地球上的动物是雌性动物，雄性动物是雄性动物。
+
+2.1399803161621094 s
+问题： 地球自转一圈大约需要
+回答：1.5个小时。
+地球自转一圈大约需要1.5个小时。
+地球自转一圈大约需要2.5个小时。
+但地球自转一圈大约需要1.5个小时。
+地球自转一圈大约需要1.5个小时。
+地球自转一圈大约需要1.5个小时。
+地球自转一圈大约需要2.5个小时。
+地球自转一圈大约需要1.5个小时。
+地球自转一圈大约需要1.5个小时。
+地球自转一圈大约需要2.5个小时。
+地球自转一圈大约需要1.5个小时。
+地球自转一圈大约需要1.5个小时。
+地球自转一圈大约需要3.5个小时。
+地球自转一圈大约需要0.5个小时。
+地球自转一圈大约需要0.5个小时。
+地球自转一圈大约需要1.5个小时。
+地球自转一圈大约需要5小时。
+地球自转一圈大约需要6.5个小时。
+地球自转一圈大约需要2.5个小时。
+地球自转一圈大约需要4.5个小时。
+地球自转一圈大约需要6.5小时。
+地球自转一圈大约需要3.5个小时。
+地球自转一圈大约需要5-6小时。
+地球自转一圈大约需要2.5个小时。
+地球自转一圈大约需要1小时。
+
+2.3083384037017822 s
+问题： 杭州市的美食有
+回答：哪些
+美食有哪些
+美食有哪些
+美容、美容、美发、保健、美甲等。美容、美发、护肤、清洁、美白、美体、美白、美白、美白、美白、美白、保健。美容、美发、保健、美甲等。
+美容、美发、美甲等。美容、美发、护肤、清洁、美容、美甲等。美容、保健、美甲等。美容、美发、保健、美甲等。美容、美发、保健、美甲等。
+美容、美容、美发、保健、美甲等。美容、保健、美甲等。美容、美甲等。美容、美发、保健、美甲等。
+
+1.062201738357544 s
+问题： 江苏省的最好的大学
+回答：有：江苏省应用技术大学；江苏省应用技术学院；江苏省应用技术大学；江苏省应用技术学院；苏州大学；苏州大学；苏州大学；苏州大学；苏州工业园区；苏州大学；苏州工业园区。
+江苏大学的前身是1979年创办的江苏高等专科学校，1998年更名为江苏大学。2014年4月，由江苏省人民政府批准成立江苏大学。2017年，江苏大学与苏州工业园区共建高校，并于2020年7月正式合并。江苏大学是江苏省首批高等教育国家级示范性高校、江苏省首批“世界一流学科建设高校”、“国家首批加快推进高等教育内涵式发展试验区”、“国家高水平大学基础学科创新平台”、“国家首批卓越农林人才教育培养计划”、“国家“国培计划”、国家“双一流”建设高校、“江苏省百所高水平大学”、江苏省首批“卓越农林人才教育培养计划”、“江苏省首批高水平学科创新平台”和“江苏省首批高水平特色学科创新平台”。2021年，学校入选国家首批“211工程”建设高校、全国首批54所“百校工程”建设高校、国防科技工业示范院校和国家“111”计划“111”计划。
+
+2.908013343811035 s
+```
+
+
+
+>
+>
+>
 
 ## 指令微调
 
 ### sft
+
+这里sft先用 sft_data_single.csv数据集
+
+下面是对应Dataset
+
+```python
+class SFTDataset(Dataset):
+    def __init__(self, df, tokenizer, max_length=1024, prompt_max_len=512, answer_max_len=256):
+        super().__init__()
+        self.df = df
+        self.max_length = max_length
+        self.prompt_max_len = prompt_max_len
+        self.answer_max_len = answer_max_len
+        #
+        self.tokenizer = tokenizer
+        self.padding = 0
+        self.bos_id = self.tokenizer('<s>assistant').data['input_ids']
+
+    def __len__(self):
+        return self.df.shape[0]
+
+    def find_sublist_index(self, main_list, sub_list) -> int:
+        last_index = -1
+        for i in range(len(main_list) - len(sub_list) + 1):
+            if main_list[i:i + len(sub_list)] == sub_list:
+                last_index = i
+        return last_index
+
+    def safe_eval(self, s):
+        try:
+            res = eval(s)
+        except Exception as e:
+            return []
+        return res
+
+    def __getitem__(self, index: int):
+        #
+        sample = self.df.iloc[index]
+        history = self.safe_eval(sample['history'])
+        q = str(sample['q'])
+        a = str(sample['a'])
+
+        messages = []
+        for history_message in history:
+            if len(history_message) <= 1:
+                continue
+            messages.append(
+                {"role": 'user', "content": str(history_message[0])[:self.max_length // 2]}
+            )
+            messages.append(
+                {"role": 'assistant', "content": str(history_message[1])[:self.max_length // 2]}
+            )
+
+        messages += [
+            {"role": "user", "content": q},
+            {"role": "assistant", "content": a},
+        ]
+        new_prompt = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+        input_id = self.tokenizer(new_prompt).data['input_ids'][:self.max_length]
+
+        # 实际长度
+        question_length = self.find_sublist_index(input_id, self.bos_id) + len(self.bos_id)
+        # 没满最大长度的剩余部分
+        padding_len = self.max_length - len(input_id)
+        input_id = input_id + [self.padding] * padding_len
+        mask_len = len(input_id) - question_length - padding_len
+        # 0表示不计算损失
+        loss_mask = [0] * question_length + [1] * (mask_len) + [0] * padding_len
+
+        input_id = np.array(input_id)
+        X = np.array(input_id[:-1]).astype(np.int64)
+        Y = np.array(input_id[1:]).astype(np.int64)
+        loss_mask = np.array(loss_mask[1:]).astype(np.int64)
+
+        X_tensor = torch.from_numpy(X)
+        Y_tensor = torch.from_numpy(Y)
+        loss_mask_tensor = torch.from_numpy(loss_mask)
+
+        return X_tensor, Y_tensor, loss_mask_tensor
+
+```
+
+
+
+`python 3-full_sft.py` 执行指令微调，得到 `full_sft_*.pth` 作为指令微调的输出权重
+
+接着单机双卡做sft
+
+注意接着用--use_wandb
+
+```bash
+torchrun --nproc_per_node 2 3-full_sft.py --use_wandb
+```
+
+跑了15个epoch， 大概
+
+![image-20241122142422814](../picture.asset/image-20241122142422814.png)
+
+![image-20241122142540664](../picture.asset/image-20241122142540664.png)
+
+下面是sft的代码
+
+```python
+import os
+import platform
+import argparse
+import time
+import math
+import warnings
+
+import pandas as pd
+import torch
+import torch.nn.functional as F
+import torch.distributed as dist
+from contextlib import nullcontext
+
+from torch import optim
+from torch.nn.parallel import DistributedDataParallel
+from torch.utils.data import DataLoader, DistributedSampler
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from model.model import Transformer
+from model.LMConfig import LMConfig
+from model.dataset import SFTDataset
+
+warnings.filterwarnings('ignore')
+
+def Logger(content):
+    """
+    日志记录函数，仅在主进程中打印日志。
+
+    参数:
+        content (str): 要打印的日志内容。
+    """
+    if not ddp or dist.get_rank() == 0:
+        print(content)
+
+def get_lr(it, all):
+    """
+    计算当前迭代的学习率。学习率先线性增长然后余弦衰减。
+
+    参数:
+        it (int): 当前迭代次数。
+        all (int): 总迭代次数。
+
+    返回:
+        float: 当前学习率。
+    """
+    warmup_iters = args.warmup_iters
+    lr_decay_iters = all
+    min_lr = args.learning_rate / 10
+
+    if it < warmup_iters:
+        return args.learning_rate * it / warmup_iters
+    if it > lr_decay_iters:
+        return min_lr
+    decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+    assert 0 <= decay_ratio <= 1
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+    return min_lr + coeff * (args.learning_rate - min_lr)
+
+def train_epoch(epoch, wandb):
+    """
+    训练一个epoch。
+
+    参数:
+        epoch (int): 当前epoch编号。
+        wandb (wandb.WandbRun 或 None): Weights & Biases运行对象，用于日志记录。
+    """
+    start_time = time.time()
+    for step, (X, Y, loss_mask) in enumerate(train_loader):
+        X = X.to(args.device)
+        Y = Y.to(args.device)
+        loss_mask = loss_mask.to(args.device)
+
+        # 获取当前迭代的学习率并更新优化器的学习率
+        lr = get_lr(epoch * iter_per_epoch + step, args.epochs * iter_per_epoch)
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
+        # 使用自动混合精度上下文管理器（如果适用）
+        with ctx:
+            logits = model(X, Y).logits
+            # 计算损失
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), Y.view(-1), ignore_index=0, reduction='none')
+            loss_mask = loss_mask.view(-1)
+            loss = torch.sum(loss * loss_mask) / loss_mask.sum()
+
+        # 梯度缩放以支持混合精度训练
+        scaler.scale(loss).backward()
+
+        # 梯度累积步骤
+        if (step + 1) % args.accumulation_steps == 0:
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+
+            scaler.step(optimizer)
+            scaler.update()
+
+            optimizer.zero_grad(set_to_none=True)
+
+        # 打印日志
+        if step % args.log_interval == 0:
+            spend_time = time.time() - start_time
+            Logger(
+                'Epoch:[{}/{}]({}/{}) loss:{:.3f} lr:{:.7f} epoch_Time:{}min:'.format(
+                    epoch,
+                    args.epochs,
+                    step,
+                    iter_per_epoch,
+                    loss.item(),
+                    optimizer.param_groups[-1]['lr'],
+                    spend_time / (step + 1) * iter_per_epoch // 60 - spend_time // 60))
+
+            # 将日志发送到Weights & Biases
+            if (wandb is not None) and (not ddp or dist.get_rank() == 0):
+                wandb.log({"loss": loss.item(),
+                           "lr": optimizer.param_groups[-1]['lr'],
+                           "epoch_Time": spend_time / (step + 1) * iter_per_epoch // 60 - spend_time // 60})
+
+        # 保存模型检查点
+        if (step + 1) % args.save_interval == 0 and (not ddp or dist.get_rank() == 0):
+            model.eval()
+            moe_path = '_moe' if lm_config.use_moe else ''
+            ckp = f'{args.save_dir}/full_sft_{lm_config.dim}{moe_path}.pth'
+
+            if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+                state_dict = model.module.state_dict()
+            else:
+                state_dict = model.state_dict()
+
+            torch.save(state_dict, ckp)
+            model.train()
+
+def init_model():
+    """
+    初始化模型和分词器。
+
+    返回:
+        tuple: 包含模型和分词器的元组。
+    """
+    tokenizer = AutoTokenizer.from_pretrained('./model/minimind_tokenizer')
+    model_from = 1  # 1从权重文件加载，2使用transformers库中的预训练模型
+
+    def count_parameters(model):
+        """
+        计算模型中可训练参数的数量。
+
+        参数:
+            model (nn.Module): 模型实例。
+
+        返回:
+            int: 可训练参数的数量。
+        """
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    if model_from == 1:
+        model = Transformer(lm_config)
+        moe_path = '_moe' if lm_config.use_moe else ''
+        ckp = f'./out/pretrain_{lm_config.dim}{moe_path}.pth'
+        state_dict = torch.load(ckp, map_location=args.device)
+        unwanted_prefix = '_orig_mod.'
+        for k, v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+        model.load_state_dict(state_dict, strict=False)
+    else:
+        model = AutoModelForCausalLM.from_pretrained('./minimind-v1-small', trust_remote_code=True)
+
+    Logger(f'LLM总参数量：{count_parameters(model) / 1e6:.3f} 百万')
+    model = model.to(args.device)
+
+    return model, tokenizer
+
+def init_distributed_mode():
+    """
+    初始化分布式训练模式。
+    """
+    if not ddp: return
+    global ddp_local_rank, DEVICE
+
+    dist.init_process_group(backend="nccl")
+    ddp_rank = int(os.environ["RANK"])
+    ddp_local_rank = int(os.environ["LOCAL_RANK"])
+    ddp_world_size = int(os.environ["WORLD_SIZE"])
+    DEVICE = f"cuda:{ddp_local_rank}"
+    torch.cuda.set_device(DEVICE)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="MiniMind Full SFT")
+    parser.add_argument("--out_dir", type=str, default="out", help="Output directory")
+    parser.add_argument("--epochs", type=int, default=19, help="Number of epochs")
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
+    parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument("--device", type=str, default="cuda:0" if torch.cuda.is_available() else "cpu", help="Device to use")
+    parser.add_argument("--dtype", type=str, default="bfloat16", help="Data type")
+    parser.add_argument("--use_wandb", action="store_true", help="Use Weights & Biases")
+    parser.add_argument("--wandb_project", type=str, default="MiniMind-Full-SFT", help="Weights & Biases project name")
+    parser.add_argument("--num_workers", type=int, default=1, help="Number of workers for data loading")
+    parser.add_argument("--ddp", action="store_true", help="Use DistributedDataParallel")
+    parser.add_argument("--accumulation_steps", type=int, default=1, help="Gradient accumulation steps")
+    parser.add_argument("--grad_clip", type=float, default=1.0, help="Gradient clipping threshold")
+    parser.add_argument("--warmup_iters", type=int, default=0, help="Number of warmup iterations")
+    parser.add_argument("--log_interval", type=int, default=100, help="Logging interval")
+    parser.add_argument("--save_interval", type=int, default=1000, help="Model saving interval")
+    parser.add_argument('--local_rank', type=int, default=-1, help='local rank for distributed training')
+
+    args = parser.parse_args()
+
+    lm_config = LMConfig()
+    max_seq_len = lm_config.max_seq_len
+    args.save_dir = os.path.join(args.out_dir)
+    os.makedirs(args.save_dir, exist_ok=True)
+    os.makedirs(args.out_dir, exist_ok=True)
+    tokens_per_iter = args.batch_size * max_seq_len
+    torch.manual_seed(1337)
+    device_type = "cuda" if "cuda" in args.device else "cpu"
+
+    args.wandb_run_name = f"MiniMind-Full-SFT-Epoch-{args.epochs}-BatchSize-{args.batch_size}-LearningRate-{args.learning_rate}"
+
+    # 自动混合精度上下文管理器
+    ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast()
+    ddp = int(os.environ.get("RANK", -1)) != -1  # 是否为分布式数据并行运行？
+    ddp_local_rank, DEVICE = 0, "cuda:0"
+    if ddp:
+        init_distributed_mode()
+        args.device = torch.device(DEVICE)
+
+    # 初始化Weights & Biases项目
+    if args.use_wandb and (not ddp or ddp_local_rank == 0):
+        import wandb
+        wandb.init(project=args.wandb_project, name=args.wandb_run_name)
+    else:
+        wandb = None
+
+    # 初始化模型和分词器
+    model, tokenizer = init_model()
+
+    # 加载数据集并初始化数据加载器
+    df = pd.read_csv('./dataset/sft_data_single.csv')
+    df = df.sample(frac=1.0)
+    train_ds = SFTDataset(df, tokenizer, max_length=max_seq_len)
+    train_sampler = DistributedSampler(train_ds) if ddp else None
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=args.batch_size,
+        pin_memory=True,
+        drop_last=False,
+        shuffle=False,
+        num_workers=args.num_workers,
+        sampler=train_sampler
+    )
+
+    # 初始化梯度缩放器和优化器
+    scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype in ['float16', 'bfloat16']))
+    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+
+    # 编译模型（目前禁用）
+    if False and not lm_config.use_moe and platform.system() != 'Windows' and float(torch.__version__.split('.')[0]) >= 2:
+        Logger("compiling the model... (takes a ~minute)")
+        unoptimized_model = model
+        model = torch.compile(model)
+
+    # 设置DistributedDataParallel
+    if ddp:
+        model._ddp_params_and_buffers_to_ignore = {"pos_cis"}
+        model = DistributedDataParallel(model, device_ids=[ddp_local_rank])
+
+    # 开始训练循环
+    iter_per_epoch = len(train_loader)
+    for epoch in range(args.epochs):
+        train_epoch(epoch, wandb)
+
+```
+
+
+
+`python 2-eval.py`测试模型的对话效果，可见有了明显的指令遵循能力
+
+```text
+模型参数: 26.878464 百万 = 0.026878464 B (Billion)
+[Q]: 你叫什么名字
+[A]: 我是一台计算机程序，不会有任何个人名字。
+
+[Q]: 你是谁
+[A]: 我的名字是AI助手，是由一系列算法和算法组成的，可以为人们提供各种服务。我的设计使我能够不断学习和进化，以提供最优质的服务。
+
+[Q]: 中国有哪些比较好的大学？
+[A]: 中国有很多著名的大学，比如清华大学、北京大学、上海交通大学、中国农业大学等等。每个大学的学科和校园都有其独特的特色和优势。如果您感兴趣，可以去看看各大学院级别的综合性大学，如哈尔滨学士院、上海交通大学、北京大学等。
+
+[Q]: 全世界最好的大学是什么？
+[A]:  这个问题很主观，每个人对于“最好的大学”的定义都不同。但是，根据世界卫生组织的声誉，世界卫生组织是世界上最高的大学之一，有超过200个荣誉校区，被认为是世界上最好的大学之一。此外，还有一些著名的大学，如哈佛大学、斯坦福大学、麻省理工学院等，它们在全球范围内拥有极高的声誉和影响力。
+
+[Q]: 你知道光速是多少吗？
+[A]: 光速是17小时。光速是宇宙中最基本的常量之一，它不仅仅是光速。它是所有物质都可以达到的速度之一。光速是宇宙中最大的物理常数之一，也是最基本的速度单位之一。
+
+[Q]: 你知道长江吗？
+[A]: 长江是中国最长的河流，总长约6300千米。它位于中国的中部地区，流经中国境内，是中国最重要的河流之一。长江流域是中国最大的经济体，也是中国最重要的水利资源之一。
+
+[Q]: 人类的血液主要由哪些成分组成？
+[A]: 人类的血液主要由氨基酸、磷酸和硅酸盐组成。氨基酸是人体细胞中负责酶的组成部分，是构成人体组织和细胞的主要组分之一。磷酸和硫酸酯是负责人体内部的物质合成和传递的信息和蛋白质。
+
+[Q]: 第一颗人造卫星是哪个国家发射的？
+[A]: 第一颗人造卫星是中国的“天宫二号”，它于2007年运营。
+
+[Q]: 你知道杭州有什么美食吗？
+[A]:  杭州以其美味的美食而闻名，比如西湖醋鱼、龙井虾仁、东坡肉等等。此外，还有许多特色小吃，如龙井虾仁，杭州小笼包等。
+
+[Q]: 你知道泰山在哪里吗？
+[A]: 泰山位于中国的山东省，是中国的五岳之一。它位于山东省泰安市，是中国文化和历史的象征之一。泰山有千年历史，是中国传统文化的重要象征之一，也是世界著名的旅游胜地之一。
+
+[Q]: 地球上最大的动物是什么？
+[A]: 地球上最大的动物是蓝鲸，它可以长达30米，重达173吨。
+
+[Q]: 地球自转一圈大约需要多少时间？
+[A]: 地球自转一周需要大约24小时。因为地球是球形的，它的自转轴与地球轴的夹角是固定的，所以我们每天会经历大约24小时地球自转一圈。
+
+[Q]: 人类最早使用的金属是什么？
+[A]:  人类最早使用的金属是锁。在古代，人们将锁用于财产或财产的保管、财产管理等方面。随着时间的推移，人们逐渐使用锁来保护财产或其他财产。现在，金属是最早出现的物质，被用于工业、商业和其他领域。
+
+[Q]: 水的化学分子式是什么？
+[A]: 水的化学式是H2O，表示由两个氢原子和一个氧原子组成的分子。
+
+[Q]: 大气层中含量最多的气体是什么？
+[A]:  大气层中含量最多的气体是氮气，它占据了大约50％的体积。
+
+[Q]: 世界上最高的山峰是什么？
+[A]: 世界上最高的山峰是珠穆朗玛峰，位于中国和尼泊尔的边境处，海拔8848米。
+
+[Q]: 你知道世界上最深的海沟是什么吗？
+[A]: 当然，世界上最深的海沟是马里亚纳海沟，它位于西太平洋，深度达到了10911米。
+
+[Q]: 最早发明印刷术的是哪个国家？
+[A]: 最早印刷术是由意大利发明家毕达哥拉斯发明的，他于公元1096年发明了北美印刷术，并于公元前3000年左右完成了这项技术。
+
+[Q]: 万有引力是谁提出的？
+[A]: 万有引力是牛顿在17世纪提出的一个理论，描述了行星绕着恒星公转以及宇宙起源的过程中存在的引力效应。该理论被广泛应用于天文学、物理学、工程学和技术等领域。
+
+[Q]: 光合作用的主要原理是什么？
+[A]: 光合作用的主要原理是光能被吸收，并利用碳和二氧化碳来合成有机物（如葡萄糖和淀粉）。这个过程产生氧气和葡萄糖，这些有机物质在光的作用下会被二氧化碳和水分子分解成氧气和葡萄糖。这个过程需要能量和二氧化碳，所以光合作用是非常重要的。
+
+[Q]: 你知道大熊猫的主要食物是什么吗？
+[A]: 大熊猫的主要食物是竹子，但也会吃些其他植物、水果、坚果和小型动物。它们还会吃少量的植物果实、坚果和种子等。
+
+[Q]: 海水为什么是咸的？
+[A]: 海水是咸的主要原因是其中含有大量的盐分。盐分主要来自于海洋中的盐分溶液，当这些溶液中氯离子浓度低时，就会形成盐水。当这些氯离子与水分子接触时，它们被分散在海水中，形成了海水中的盐度较高的盐水。所以，海水中含有很少的盐分，而盐分也是海水中含有很少盐分的原因。
+
+[Q]: 我们平时喝的牛奶主要含有什么营养成分？
+[A]: 牛奶是富含蛋白质、钙、维生素D等营养成分的重要来源。适量的牛奶可以提供我们所需的蛋白质、钙、维生素D等营养成分，同时还可以提高人体免疫力。但是要注意的是，不要将牛奶煮成过多的脂肪和盐分，否则会导致摄入过多的脂肪和钙，影响健康。
+
+[Q]: 一星期有多少天？
+[A]:  一星期有七天。
+```
+
+下面是sft的训练代码
+
+```python
+import random
+import time
+
+import numpy as np
+import torch
+import warnings
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from model.model import Transformer
+from model.LMConfig import LMConfig
+
+warnings.filterwarnings('ignore')
+
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+def init_model(lm_config):
+    tokenizer = AutoTokenizer.from_pretrained('./model/minimind_tokenizer')
+    model_from = 1  # 1从权重，2用transformers
+
+    if model_from == 1:
+        moe_path = '_moe' if lm_config.use_moe else ''
+        ckp = f'./out/full_sft_{lm_config.dim}{moe_path}.pth'
+
+        model = Transformer(lm_config)
+        state_dict = torch.load(ckp, map_location=device)
+
+        # 处理不需要的前缀
+        unwanted_prefix = '_orig_mod.'
+        for k, v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+
+        for k, v in list(state_dict.items()):
+            if 'mask' in k:
+                del state_dict[k]
+
+        # 加载到模型中
+        model.load_state_dict(state_dict, strict=False)
+    else:
+        model = AutoModelForCausalLM.from_pretrained('./minimind-v1-small', trust_remote_code=True)
+    model = model.to(device)
+
+    print(f'模型参数: {count_parameters(model) / 1e6} 百万 = {count_parameters(model) / 1e9} B (Billion)')
+    return model, tokenizer
+
+
+def setup_seed(seed):
+    random.seed(seed)  # 设置 Python 的随机种子
+    np.random.seed(seed)  # 设置 NumPy 的随机种子
+    torch.manual_seed(seed)  # 设置 PyTorch 的随机种子
+    torch.cuda.manual_seed(seed)  # 为当前 GPU 设置随机种子（如果有）
+    torch.cuda.manual_seed_all(seed)  # 为所有 GPU 设置随机种子（如果有）
+    torch.backends.cudnn.deterministic = True  # 确保每次返回的卷积算法是确定的
+    torch.backends.cudnn.benchmark = False  # 关闭 cuDNN 的自动调优，避免不确定性
+
+
+if __name__ == "__main__":
+    # -----------------------------------------------------------------------------
+    out_dir = 'out'
+    start = ""
+    temperature = 0.7
+    top_k = 16
+    # device = 'cpu'
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    dtype = 'bfloat16'
+    max_seq_len = 1 * 1024
+    lm_config = LMConfig()
+    lm_config.max_seq_len = max_seq_len
+    # 对话是否携带历史对话（当前模型没有在连续对话数据集上训练，增大历史上文基本不会有新的问答能力）
+    contain_history_chat = False
+    # -----------------------------------------------------------------------------
+
+    model, tokenizer = init_model(lm_config)
+
+    model = model.eval()
+    # 推送到huggingface
+    # model.push_to_hub("minimind")
+    # tokenizer.push_to_hub("minimind")
+
+    # answer_way = int(input('输入0自动测试，输入1问题测试：'))
+    answer_way = 0
+    stream = True
+
+    prompt_datas = [
+        '你叫什么名字',
+        '你是谁',
+        '中国有哪些比较好的大学？',
+        '全世界最好的大学是什么？',
+        '你知道光速是多少吗？',
+        '你知道长江吗？',
+        '人类的血液主要由哪些成分组成？',
+        '第一颗人造卫星是哪个国家发射的？',
+        '你知道杭州有什么美食吗？',
+        '你知道泰山在哪里吗？',
+        '地球上最大的动物是什么？',
+        '地球自转一圈大约需要多少时间？',
+        '人类最早使用的金属是什么？',
+        '水的化学分子式是什么？',
+        '大气层中含量最多的气体是什么？',
+        '世界上最高的山峰是什么？',
+        '你知道世界上最深的海沟是什么吗？',
+        '最早发明印刷术的是哪个国家？',
+        '万有引力是谁提出的？',
+        '光合作用的主要原理是什么？',
+        '你知道大熊猫的主要食物是什么吗？',
+        '海水为什么是咸的？',
+        '我们平时喝的牛奶主要含有什么营养成分？',
+        '一星期有多少天？'
+    ]
+
+    messages_origin = []
+    messages = messages_origin
+
+    i = 0
+    while i < len(prompt_datas):
+        # Generate a random seed
+        random_seed = random.randint(0, 2 ** 32 - 1)
+        setup_seed(random_seed)
+        if not contain_history_chat:
+            messages = messages_origin.copy()
+
+        if answer_way == 1:
+            prompt = input('[Q]: ')
+        else:
+            prompt = prompt_datas[i]
+            print(f'[Q]: {prompt}')
+            i += 1
+
+        prompt = '请问，' + prompt
+        messages.append({"role": "user", "content": prompt})
+
+        # print(messages)
+        new_prompt = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )[-(max_seq_len - 1):]
+
+        x = tokenizer(new_prompt).data['input_ids']
+        x = (torch.tensor(x, dtype=torch.long, device=device)[None, ...])
+
+        answer = new_prompt
+
+        with torch.no_grad():
+            res_y = model.generate(x, tokenizer.eos_token_id, max_new_tokens=max_seq_len, temperature=temperature,
+                                   top_k=top_k, stream=stream)
+            print('[A]: ', end='')
+            try:
+                y = next(res_y)
+            except StopIteration:
+                print("No answer")
+                continue
+
+            history_idx = 0
+            while y != None:
+                answer = tokenizer.decode(y[0].tolist())
+                if answer and answer[-1] == '�':
+                    try:
+                        y = next(res_y)
+                    except:
+                        break
+                    continue
+                # print(answer)
+                if not len(answer):
+                    try:
+                        y = next(res_y)
+                    except:
+                        break
+                    continue
+
+                print(answer[history_idx:], end='', flush=True)
+                try:
+                    y = next(res_y)
+                except:
+                    break
+                history_idx = len(answer)
+                if not stream:
+                    break
+
+            print('\n')
+
+        if contain_history_chat:
+            assistant_answer = answer.replace(new_prompt, "")
+            messages.append({"role": "assistant", "content": assistant_answer})
+
+```
+
+
 
 
 
@@ -602,4 +2266,8 @@ https://wandb.ai/coffeecat-university/MiniMind-Pretrain?nw=nwusercoffeecat
 
 
 ## 评测
+
+
+
+# 分析
 
