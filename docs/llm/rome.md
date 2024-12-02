@@ -629,3 +629,177 @@ def plot_trace_heatmap(result, savepdf=None, title=None, xlabel=None, modelname=
 
 
 
+
+
+## 测试一个红苹果
+
+
+
+用rome定位 'The color of apple'这个subject在gpt2-xl的层的位置，
+
+```python
+
+
+model_name = "/home/shichaoxue/models/gpt2-xl"  # or "EleutherAI/gpt-j-6B" or "EleutherAI/gpt-neox-20b"
+mt = ModelAndTokenizer(
+    model_name,
+    low_cpu_mem_usage=False,
+    torch_dtype=(torch.float16 if "20b" in model_name else None),
+)
+
+knowns=[]
+knowns.append(dict(
+    subject='The color of apple',
+    prompt='The color of apple is '
+))
+
+
+
+noise_level = 3 * collect_embedding_std(mt, [k["subject"] for k in knowns])
+print(f"Using noise level {noise_level}")
+
+for k in knowns:
+    prompt = k['prompt']
+    subject = k['subject']
+    samples = 10
+    kind = 'mlp'
+    window = 10
+    result = calculate_hidden_flow(
+        mt, prompt, subject, samples=samples, noise=noise_level, window=window, kind=kind
+    )
+    subject_range = result['subject_range']
+    scores = result['scores']
+    low_score = result['low_score']
+    high_score = result['high_score']
+    window = result['window']
+    # print(scores)
+    # print(subject_range)
+    # print(low_score)
+    # print(high_score)
+    # print(window)
+    # print(result)
+    sub_scores = scores[subject_range[1]]
+    diff_count = sub_scores-low_score
+    target_layer = torch.argmax(diff_count).item()
+    print(target_layer)
+    k['layers'] = [target_layer]
+
+# json_datas = [k for k in knowns]
+# # 将列表保存为 JSON 文件
+# with open(datas["ZsRE"][:-5]+"_locatelayers.json", 'w') as f:
+#     json.dump(json_datas, f, indent=4)
+
+
+```
+
+输出为6
+
+
+
+
+
+然后用EasyEditor来编辑
+
+```python
+from easyeditor_local import ROMEHyperParams,BaseEditor
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
+
+config_path = "/home/shichaoxue/EasyEdit/using/gpt2-xl.yaml"
+# model_path = "/home/shichaoxue/models/Qwen2.5-Coder-7B-Instruct"
+model_path = "/home/shichaoxue/models/gpt2-xl"
+hparams = ROMEHyperParams.from_hparams(config_path)
+
+## edit descriptor: prompt that you want to edit
+prompts = [
+    # 'What university did Watts Humphrey attend?',
+    # 'Which family does Ramalinaceae belong to',
+    # 'What role does Denny Herzig play in football?'
+    'The color of apple is ',
+    'The color of apple is ',
+    'The color of apple is '
+]
+## You can set `ground_truth` to None !!!(or set to original output)
+# ground_truth = [
+#     'Illinois Institute of Technology', 'Lecanorales', 'defender'
+#     ]
+ground_truth=[
+    'red',
+    'red',
+    'red',
+]
+## edit target: expected output
+target_new = [
+    # 'University of Michigan', 'Lamiinae', 'winger'
+    'blue',
+    'blue',
+    'blue'
+    ]
+subject = [
+    # 'Lahti Town Hall', 'Denny Herzig', 'Marl Young'
+    'The color of apple',
+    'The color of apple',
+    'The color of apple'
+           ]
+
+
+# locality_inputs = {
+#     'neighborhood':{
+#         'prompt': ['Joseph Fischhof, the', 'Larry Bird is a professional', 'In Forssa, they understand'],
+#         'ground_truth': ['piano', 'basketball', 'Finnish']
+#     },
+#     'distracting': {
+#         'prompt': ['Ray Charles, the violin Hauschka plays the instrument', 'Grant Hill is a professional soccer Magic Johnson is a professional', 'The law in Ikaalinen declares the language Swedish In Loviisa, the language spoken is'],
+#         'ground_truth': ['piano', 'basketball', 'Finnish']
+#     }
+# }
+locality_inputs = None
+editor = BaseEditor.from_hparams(hparams)
+metrics, edited_model, _ = editor.edit(
+    prompts=prompts,
+    ground_truth=ground_truth,
+    target_new=target_new,
+    subject=subject
+)
+
+
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+tokenizer.pad_token_id = tokenizer.eos_token_id
+batch = tokenizer(prompts, return_tensors='pt', padding=True)
+
+post_edit_outputs = edited_model.generate(
+    input_ids=batch['input_ids'].to('cuda'),
+    attention_mask=batch['attention_mask'].to('cuda'),
+    max_new_tokens=30,
+)
+
+
+model = AutoModelForCausalLM.from_pretrained(model_path).to('cuda')
+
+pre_edit_outputs = model.generate(
+    input_ids=batch['input_ids'].to('cuda'),
+    attention_mask=batch['attention_mask'].to('cuda'),
+    max_new_tokens=30,
+)
+
+
+print('Pre-Edit Outputs: ', [tokenizer.decode(x) for x in pre_edit_outputs.detach().cpu().numpy().tolist()])
+print('Post-Edit Outputs: ', [tokenizer.decode(x) for x in post_edit_outputs.detach().cpu().numpy().tolist()])
+
+```
+
+
+
+中途出现一个小bug，tokenizer中报错merge.txt未找到，发现模型中没有，
+
+猜测是transformers版本不同导致的问题，在huggingface上单独下载一个merge.txt后，运行成功
+
+
+
+又遇到了一个问题，由于gpt2-xl不是instruct模型，所以竟然无法回答我这个prompt，苹果的颜色是。。。。。。
+
+
+
+
+
+最终遗憾失败。。。
+
