@@ -4,3 +4,4 @@
 * [大模型知识编辑评测学习赛](llm/大模型知识编辑评测学习赛.md)
 
 * [DINM](llm/DINM.md)
+* [ARE](llm/ARE.md)
