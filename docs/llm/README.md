@@ -6,6 +6,6 @@
 * [DINM](llm/DINM.md)
 * [ARE](llm/ARE.md)
 
-* [Causality_Analysis](llm/CausalityAnalysis forEvaluatingtheSecurityofLargeLanguageModels.md)
+* [Causality_Analysis](llm/CausalityAnalysisforEvaluatingtheSecurityofLargeLanguageModels.md)
 
 
