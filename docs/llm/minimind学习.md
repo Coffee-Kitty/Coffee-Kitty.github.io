@@ -1,8 +1,8 @@
-基本大模型知识参考：![image-20241121144052137](../picture.asset/image-20241121144052137.png)
+基本大模型知识参考：https://llmbook-zh.github.io/LLMBook.pdf
 
 基本代码库知识请查看https://transformers.run/
 
-实践项目：minimind
+实践项目：minimind  https://github.com/jingyaogong/minimind
 
 # minimind学习
 
@@ -325,6 +325,155 @@ class PretrainDataset(Dataset):
 ```
 
 需要注意的是，这里是并行输入的，所以X是 0-len-2  而作为预测的Y是 1-len-1
+
+<font color='green'>创建loss_mask，用于在训练时忽略padding部分的损失计算</font>
+
+
+
+#### 例子
+
+这里抽出来几条数据来看，
+
+这里的text为简单的给text加上了\<s> \</s>
+
+![image-20241215181649283](../picture.asset/image-20241215181649283.png)
+
+接下来做了被tokenize然后，根据做大长度做padding,
+
+并且给出loss_mask，即padding的部分不去计算loss,
+
+如下图，此例子就需要padding
+
+![image-20241215181847421](../picture.asset/image-20241215181847421.png)
+
+然后X,Y取得很神奇，
+
+具体来看，如下图
+
+![image-20241215182019355](../picture.asset/image-20241215182019355.png)
+
+![image-20241215182031259](../picture.asset/image-20241215182031259.png)
+
+
+
+然后我们进入train_epoch查看具体是怎么计算的loss，
+
+```python
+   for step, (X, Y, loss_mask) in enumerate(train_loader):
+        X = X.to(args.device)
+        Y = Y.to(args.device)
+        loss_mask = loss_mask.to(args.device)
+
+        lr = get_lr(epoch * iter_per_epoch + step, args.epochs * iter_per_epoch)
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
+        with ctx:
+            out = model(X, Y)
+            loss = out.last_loss / args.accumulation_steps
+            loss_mask = loss_mask.view(-1)
+            loss = torch.sum(loss * loss_mask) / loss_mask.sum()
+```
+
+
+
+首先这里DataLoader批量加载了5条数据，
+
+![image-20241215182254736](../picture.asset/image-20241215182254736.png)
+
+这里511的长度与上面相符合，
+
+然后进入model中去，loss在模型中被计算
+
+```python
+    def forward(self, tokens: Optional[torch.Tensor] = None, targets: Optional[torch.Tensor] = None,
+                kv_cache=False, **keyargs):
+        current_idx = 0
+        if 'input_ids' in keyargs:
+            tokens = keyargs['input_ids']
+        if 'attention_mask' in keyargs:
+            targets = keyargs['attention_mask']
+        if 'current_idx' in keyargs:
+            current_idx = int(keyargs['current_idx'])
+
+        _bsz, seqlen = tokens.shape
+        h = self.tok_embeddings(tokens)
+        h = self.dropout(h)
+        pos_cis = self.pos_cis[current_idx:current_idx + seqlen]
+        for idx, layer in enumerate(self.layers):
+            h = layer(h, pos_cis, kv_cache)
+
+        h = self.norm(h)
+
+        if targets is not None:
+            logits = self.output(h)
+            self.last_loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),
+                                             ignore_index=0, reduction='none')
+        else:
+            logits = self.output(h[:, [-1], :])
+            self.last_loss = None
+
+        self.OUT.__setitem__('logits', logits)
+        self.OUT.__setitem__('last_loss', self.last_loss)
+        return self.OUT
+```
+
+
+
+![image-20241215183010479](../picture.asset/image-20241215183010479.png)
+
+
+
+>  https://blog.csdn.net/wuliBob/article/details/104119616
+>
+> 对PyTorch中F.cross_entropy()的理解
+>
+> PyTorch提供了求[交叉熵](https://so.csdn.net/so/search?q=交叉熵&spm=1001.2101.3001.7020)的两个常用[函数](https://marketing.csdn.net/p/3127db09a98e0723b83b2914d9256174?pId=2782&utm_source=glcblog&spm=1001.2101.3001.7020)，一个是`F.cross_entropy()`，另一个是`F.nll_entropy()`，
+>
+> ![image-20241215194830960](../picture.asset/image-20241215194830960.png)
+> ![image-20241215194922879](../picture.asset/image-20241215194922879.png)
+>
+> ![image-20241215194941378](../picture.asset/image-20241215194941378.png)
+>
+> 
+>
+> ![image-20241215195032018](../picture.asset/image-20241215195032018.png)
+>
+> 
+>
+> ![image-20241215195231883](../picture.asset/image-20241215195231883.png)
+>
+>
+> ![image-20241215195249199](../picture.asset/image-20241215195249199.png)
+
+
+
+
+
+此时，就可串联起来模型所有的输入输出了
+
+我们给输入一句话，然后attention里做的mask！！！
+
+```python
+        mask = torch.full((1, 1, args.max_seq_len, args.max_seq_len), float("-inf"))
+        mask = torch.triu(mask, diagonal=1)
+```
+
+![image-20241215183503046](../picture.asset/image-20241215183503046.png)
+
+也就是说这一句话，模型会经过atten_mask，自回归的一个一个的生成下一个token，
+
+最终生成512个token，
+
+然后这512个再跟  target（即target跟这个input就差了开头这一个字符）比较，计算交叉熵loss
+
+也就是是符合预测下一个词元的，如下图
+
+![image-20241215183830075](../picture.asset/image-20241215183830075.png)
+
+但是输入真的就是一句话，对应的也真的就是 这一句话从第二个字开始。。。
+
+
 
 ### 模型
 
@@ -1007,6 +1156,8 @@ class RMSNorm(torch.nn.Module):
 
 ### 预训练
 
+
+
  `python 1-pretrain.py` 执行预训练，得到 `pretrain_*.pth` 作为预训练的输出权重
 
 什么参数也没改，使用2张A800 80G直接开始train，最终训练时间为24小时左右
@@ -1593,7 +1744,6 @@ D
 
 >
 >
->
 
 ## 指令微调
 
@@ -1683,6 +1833,14 @@ class SFTDataset(Dataset):
         return X_tensor, Y_tensor, loss_mask_tensor
 
 ```
+
+
+
+
+
+
+
+
 
 
 
@@ -2253,6 +2411,43 @@ if __name__ == "__main__":
 
 ### lora
 
+这里lora用的
+
+```python
+def find_linear_with_keys(model, keys=["wq", "wk"]):
+    cls = torch.nn.Linear
+    linear_names = []
+    for name, module in model.named_modules():
+        if isinstance(module, cls):
+            for key in keys:
+                if key in name:
+                    linear_names.append(name)
+                    break
+    return linear_names
+
+
+def init_model():
+    model_name_or_path = "./minimind-v1-small"
+    tokenizer_name_or_path = "./minimind-v1-small"
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path, trust_remote_code=True, use_fast=False)
+    model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(args.device)
+
+    target_modules = find_linear_with_keys(model)
+    peft_config = LoraConfig(
+        r=8,
+        target_modules=target_modules
+    )
+    model = get_peft_model(model, peft_config)
+    model.print_trainable_parameters()
+    model = model.to(args.device)
+    return model, tokenizer
+
+```
+
+
+
+train_epoch函数还是那个样子，主要差别在于Dataset里加载的X,Y，loss
+
 
 
 
@@ -2269,5 +2464,408 @@ if __name__ == "__main__":
 
 
 
+
+
+
+
 # 分析
+
+## 梯度累加与裁剪
+
+[梯度累加](https://blog.csdn.net/hxxjxw/article/details/123407867)
+
+在训练神经网络时，batch_size的大小会对最终模型效果影响很大。
+
+一定情况下，batch_size设置的越大，模型就会越稳定。
+
+然而，当我们需要做一些计算量很大的任务，batch_size太大会遇到"OUT OF MEMORY"的不可抗力报错。
+
+<font color='red'>怎么办呢？如何在有限的计算资源的条件下，训练时采用更大的batch size呢？这就是梯度累加(Gradient Accumulation)技术了。</font>
+
+**常规训练过程**
+
+```python
+for i, (inputs, labels) in enumerate(trainloader):
+    optimizer.zero_grad()                   # 梯度清零
+    outputs = net(inputs)                   # 正向传播
+    loss = criterion(outputs, labels)       # 计算损失
+    loss.backward()                         # 反向传播，计算梯度
+    optimizer.step()                        # 更新参数
+    if (i+1) % evaluation_steps == 0:
+        evaluate_model()
+```
+
+
+
+**使用梯度累加的训练过程**
+
+```python
+for i, (inputs, labels) in enumerate(trainloader):
+    outputs = net(inputs)                   # 正向传播
+    loss = criterion(outputs, labels)       # 计算损失函数
+    loss = loss / accumulation_steps        # 损失标准化
+    loss.backward()                         # 反向传播，计算梯度
+    if (i+1) % accumulation_steps == 0:
+        optimizer.step()                    # 更新参数
+        optimizer.zero_grad()               # 梯度清零
+        if (i+1) % evaluation_steps == 0:
+            evaluate_model()
+```
+
+> 注意这里的loss每次要除以accumulation_step，
+>
+> <font color='red'>当累加到一定步数optimizer更新的值其实是这些累加值的均值</font>。其实就相当于扩大了batch_size，让更新的loss更加平稳。一个batch的数据最后算的loss也是这个batch的数据个数的均值。
+>
+>   ***总结来讲，梯度累加就是每计算一个batch的梯度，不进行清零，而是做梯度的累加(平均)，当累加到一定的次数之后，再更新网络参数，然后将梯度清零。***
+>
+>   ***通过这种参数延迟更新的手段，可以实现与采用大batch_size相近的效果。***知乎上有人说
+>
+> "在平时的实验过程中，我一般会采用梯度累加技术，大多数情况下，采用梯度累加训练的模型效果，要比采用小batch_size训练的模型效果要好很多"。
+>
+
+
+
+[梯度裁剪](https://blog.csdn.net/ZacharyGz/article/details/135410610)
+
+梯度剪裁，一种避免梯度爆炸的方式。
+
+梯度裁剪（Gradient Clipping）是一种在训练神经网络时常用的技术，它用于防止梯度爆炸问题。\
+
+梯度爆炸是指在训练过程中，梯度的大小急剧增加，导致权重更新过大，从而使得模型无法收敛或者性能急剧下降的现象.为了避免这个问题，梯度裁剪通过设定一个阈值来限制梯度的大小。如果梯度超过这个阈值，它们将被缩放至阈值以内，从而避免了大的权重更新。这样做有助于稳定训练过程，尤其是在训练复杂的深度学习模型时。
+
+在PyTorch中，可以使用`torch.nn.utils.clip_grad_norm_`或`torch.nn.utils.clip_grad_value_`[函数](https://marketing.csdn.net/p/3127db09a98e0723b83b2914d9256174?pId=2782&utm_source=glcblog&spm=1001.2101.3001.7020)来实现梯度裁剪。
+
+![image-20241215152733215](../picture.asset/image-20241215152733215.png)
+
+
+
+梯度裁剪的两种常见形式是：
+
+1. **梯度范数裁剪（Gradient Norm Clipping）**:
+   - 这种方法涉及计算所有参数梯度的范数（例如L2范数），如果这个范数超过了设定的阈值，就将梯度缩放到这个阈值以内。在PyTorch中，这可以通过`torch.nn.utils.clip_grad_norm_`函数实现。
+2. **梯度值裁剪（Gradient Value Clipping）**:
+   - 这种方法对每个参数的梯度值进行独立裁剪，确保它们不会超过一个设定的最大值或最小值。在PyTorch中，这可以通过`torch.nn.utils.clip_grad_value_`函数实现。
+
+> 梯度范数裁剪（Gradient Norm Clipping）
+> 梯度范数裁剪通过调整整个参数梯度向量来保持其总体范数不超过特定阈值。它不关注单个梯度的值，而是关注所有梯度构成的整体范数。如果梯度的范数超过了指定的阈值，则会按比例缩小梯度向量的每个分量，使得整体范数等于或小于该阈值。
+> 这种方法的数学表达为：
+> 如果∥g∥>c，则更新梯度g为 g × c /∥g∥其中∥g∥是梯度向量的范数，c是预设的阈值
+> 这种方法的优点是它能够保持梯度向量的方向不变，同时缩小其长度
+
+> 梯度值裁剪（Gradient Value Clipping）
+> 梯度值裁剪对梯度向量中的每个元素独立地进行裁剪，确保它们的值不会超出指定的范围。对于每个梯度 gᵢ ，如果 gᵢ > c，那么 gᵢ 就被设置为c；如果 gᵢ < -c，那么 gᵢ 就被设置为-c。
+> 这种方法不考虑梯度向量的整体范数，只是单独地限制每个梯度值的大小。这可能会改变梯度向量的方向，但确保了没有任何一个梯度的绝对值太大。
+
+总结
+梯度范数裁剪和梯度值裁剪都可以防止梯度过大，但它们的方法和影响各不相同。梯度范数裁剪更多地用于保持梯度方向的稳定性，而梯度值裁剪则是限制梯度的大小。实际应用中选择哪一种取决于具体问题和模型的需求。<font color='green'>通常，梯度范数裁剪更受青睐，因为它能够在不改变梯度方向的前提下，有效地控制梯度的大小。</font>
+
+梯度裁剪可能会影响学习过程，因为它人为地限制了梯度的大小，这可能会防止模型探索参数空间的某些部分。
+
+示例：
+
+```python
+import torch
+from torch import nn
+from torch.nn.utils import clip_grad_norm_
+
+# 假设 model 是您的模型实例，optimizer 是您的优化器实例
+
+max_grad_norm = 1.0  # 设定梯度的最大范数
+
+for epoch in range(num_epochs):
+    for inputs, targets in dataloader:  # dataloader 是您的数据加载器
+        optimizer.zero_grad()  # 清除旧的梯度
+        outputs = model(inputs)  # 获取模型预测结果
+        loss = loss_function(outputs, targets)  # 计算损失
+        loss.backward()  # 反向传播计算梯度
+        
+        # 在执行优化步骤之前裁剪梯度
+        clip_grad_norm_(model.parameters(), max_grad_norm)
+        
+        optimizer.step()  # 更新模型参数
+
+```
+
+在这段代码中，`clip_grad_norm_`函数将模型参数的梯度范数限制在`max_grad_norm`指定的范围内。如果梯度的范数超过了这个值，那么会按比例缩小梯度以使范数等于`max_grad_norm`。
+
+
+
+```python
+from torch.nn.utils import clip_grad_value_
+
+clip_value = 0.5  # 设定梯度的最大绝对值
+
+# 在训练循环中...
+clip_grad_value_(model.parameters(), clip_value)
+
+```
+
+在这个例子中，任何大于`clip_value`的梯度值将被设置为`clip_value`，任何小于`-clip_value`的梯度值将被设置为`-clip_value`。
+
+
+
+梯度裁剪通常在反向传播之后、参数更新之前进行。这有助于控制梯度的大小，从而防止训练过程中出现数值问题。
+
+
+
+## 混合精度训练
+
+检查 CUDA 是否可用：使用 torch.cuda.is_available() 检查是否有可用的 CUDA 设备。
+获取 CUDA 设备名称：使用 torch.cuda.get_device_name(device) 获取 CUDA 设备的名称。
+获取 CUDA 设备能力：使用 torch.cuda.get_device_capability(device) 获取 CUDA 设备的能力值。这些值通常表示为 (major, minor) 对，其中 major 表示主要版本号，而 minor 表示次要版本号。
+根据能力值判断支持的精度：
+如果 major 大于等于 5，则支持半精度（FP16）。
+如果 major 大于等于 7，则支持张量核心（TF32）、混合精度（FP16 + FP32）、全精度（FP32）和双精度（FP64）
+
+```python
+import torch
+
+# 检查是否有可用的 CUDA 设备
+if torch.cuda.is_available():
+    # 获取第一个可用的 CUDA 设备
+    device = torch.device("cuda:0")
+    
+    # 获取 CUDA 设备的一些基本信息
+    print("CUDA Device Name:", torch.cuda.get_device_name(device))
+    print("CUDA Device Capability:", torch.cuda.get_device_capability(device))
+    
+    # CUDA 设备的能力值可以用来确定支持的精度
+    major, minor = torch.cuda.get_device_capability(device)
+    
+    # 根据 CUDA 设备的能力值判断支持的精度
+    if major >= 5:
+        print("Supports half precision (FP16)")
+    if major >= 7:
+        print("Supports tensor cores (TF32)")
+    if major >= 7:
+        print("Supports mixed precision (FP16 + FP32)")
+    if major >= 7:
+        print("Supports full precision (FP32)")
+    if major >= 7:
+        print("Supports double precision (FP64)")
+else:
+    print("No CUDA-capable device found.")
+
+```
+
+
+
+[float32、float16、bfloat16之间的差异](https://blog.csdn.net/a61022706/article/details/135190055)
+
+简单来说就是
+
+1. **Float32** ：又称FP32(float point 32)，是具有32位的浮点数，其中有1个符号位，8位表示指数，23位表示尾数。是标准的数据类型。
+
+2. **Float16**：又称FP16，其位数只有FP32的一半，<font color='red'>指数保留5位</font>，尾数保留10位。FP16所能表示的最大的数字是64k，存在上溢和下溢的风险。
+3. **Bfloat16**：又称BF16，<font color='red'>其指数位数与FP32相同，都是8位</font>，<font color='green'>因此表示的数据范围更广，但是精度比FP16要差。</font>
+
+
+
+[混合精度训练（Mixed Precision Training）](https://www.cnblogs.com/s-tyou/p/16558976.html)
+
+[混合精度训练（Mixed Precision Training）](https://blog.csdn.net/magic_ll/article/details/124689395)
+
+混合精度训练（Mixed Precision Training）是一种在深度学习中提高训练速度和减少内存占用的技术。
+
+在PyTorch中，通过使用半精度浮点数（16位浮点数，FP16）和单精度浮点数（32位浮点数，FP32）的组合。
+
+> Python中的浮点数类型（float）： 在Python中，浮点数类型被称为float。float是一种内置数据类型，用于表示有小数部分的数值。它提供了双精度浮点数的精度，通常在大多数情况下，float的精度已经足够满足计算要求。<font color='green'>由于Python的设计哲学之一是简洁明了，因此没有引入明确的double类型，而是直接使用float来表示双精度浮点数。</font>
+
+
+
+在深度学习中，使用FP16进行训练可以显著减少模型的内存占用，加快数据传输和计算速度，尤其是在配备有Tensor Core的NVIDIA GPU上。<font color='green'>然而，由于FP16的数值范围较小，可能会导致数值下溢（underflow）或精度损失</font>，因此在训练过程中可能需要一些特殊的技术（<font color='red'>如梯度缩放和混合精度训练</font>）来确保模型的数值稳定性和最终精度。
+
+
+
+下面是一个使用PyTorch进行混合精度训练的例子：
+
+1. 首先，确保你的硬件和PyTorch版本支持FP16运算。然后，导入必要的库
+
+```python
+   import torch
+   import torch.nn as nn
+   import torch.optim as optim
+   from torch.cuda.amp import autocast, GradScaler
+```
+
+
+
+2. 创建一个简单的神经网络模型，例如一个多层感知机（MLP）：
+
+```python
+   class SimpleMLP(nn.Module):
+       def __init__(self):
+           super().__init__()
+           self.fc1 = nn.Linear(10, 5)
+           self.fc2 = nn.Linear(5, 2)
+
+       def forward(self, x):
+           x = torch.relu(self.fc1(x))
+           x = self.fc2(x)
+           return x
+
+```
+
+3. 启用混合精度训练
+
+***<font color='red'>使用`autocast()`上下文管理器来指定哪些操作应该使用FP16执行：</font>***
+
+```python
+   model = SimpleMLP().cuda()
+   model.train()
+   scaler = GradScaler()
+
+   for epoch in range(num_epochs):
+       for batch in data_loader:
+           x, y = batch
+           x, y = x.cuda(), y.cuda()
+
+           with autocast():
+               outputs = model(x)
+               loss = criterion(outputs, y)
+
+           # 反向传播和权重更新
+           scaler.scale(loss).backward()
+           scaler.step(optimizer)
+           scaler.update()
+```
+
+在这个例子中，***`autocast()`将模型的前向传播和损失计算转换为FP16格式***。然而，***反向传播仍然是在FP32精度下进行的，这是为了保持数值稳定性。***
+
+4. **使用`GradScaler`**：
+
+   由于FP16的数值范围较小，可能会导致梯度下溢（underflow）。`GradScaler`在反向传播之前将梯度的值放大，然后在权重更新之后将其缩放回来
+
+GradScaler 是 PyTorch 中 torch.cuda.amp 模块提供的一个工具，它用于帮助进行混合精度训练。在混合精度训练中，我们通常使用 FP16 来存储模型的权重和进行前向计算，以减少内存占用和加速计算。
+
+然而，FP16 的数值范围比 FP32 小，这可能导致在梯度计算和权重更新时出现数值下溢（underflow），<font color='green'>***即梯度的数值变得非常小，以至于在 FP16 格式下无法有效表示。***</font>
+
+<font color='blue'>GradScaler 通过在反向传播之前自动放大（scale up）梯度的值来解决这个问题。然后，在执行权重更新之后，GradScaler 会将放大的梯度缩放（scale down）回原来的大小。这个过程确保了即使在 FP16 格式下，梯度的数值也能保持在可表示的范围内，从而避免了数值下溢的问题</font>
+
+```python
+scaler = torch.cuda.amp.GradScaler()
+for inputs, targets in dataloader:
+    with autocast():
+        outputs = model(inputs)
+        loss = loss_fn(outputs, targets)
+    scaler.scale(loss).backward()  # 放大梯度
+    scaler.step(optimizer)  # 应用缩放后的梯度进行权重更新
+    scaler.update()  # 更新缩放因子
+```
+
+
+
+5. 保存和加载模型
+
+```python
+   torch.save(model.state_dict(), 'model.pth')
+   model.load_state_dict(torch.load('model.pth'))
+```
+
+在混合精度训练中，虽然模型的权重在训练过程中可能会被转换为 FP16 格式以节省内存和加速计算，但在保存模型时，我们通常会将权重转换回 FP32 格式。这是因为 FP32 提供了更高的数值精度和更广泛的硬件支持，这使得模型在不同环境中的兼容性和可靠性更好。
+
+在 PyTorch 中，当你调用 model.state_dict() 方法时，默认情况下它会返回一个包含 FP32 权重的字典。即使你在训练时使用了 FP16，这个字典也会包含 FP32 权重，因为 PyTorch 会先转换为 FP32 再保存。同样，当你使用 torch.load() 加载模型时，如果模型权重是 FP16 格式，PyTorch 会自动将它们转换为 FP32。
+
+注意，如果你的模型是在 GPU 上训练的，加载模型时应该使用 map_location 参数来指定加载到 CPU，然后再将模型转换为 FP32 并移回 GPU。
+
+>**Gradient clipping**
+>
+>```python
+>scaler = GradScaler()
+>
+>for epoch in epochs:
+>    for input, target in data:
+>        optimizer.zero_grad()
+>        with autocast():
+>            output = model(input)
+>            loss = loss_fn(output, target)
+>        scaler.scale(loss).backward()
+>
+>        # 先进行unscale 梯度，此时的clip threshold才能正确对梯度使用
+>        scaler.unscale_(optimizer)
+>        # clip梯度
+>        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+>
+>        # unscale_() 已经被显式调用了，scaler执行step时就不再unscalse更新参数，有nan/inf也会跳过
+>        scaler.step(optimizer)
+>        scaler.update()
+>
+>```
+
+
+
+## DDP
+
+https://www.cnblogs.com/liyier/p/18135209
+
+
+
+https://www.cnblogs.com/liyier/p/18136458
+
+
+具体参见上面两篇博客，非常详细
+
+
+
+在PyTorch中，<font color='green'>分布式数据并行（Distributed Data Parallel</font>，简称DDP）是一种常见的分布式训练方法.
+
+![image-20241215175603691](../picture.asset/image-20241215175603691.png)
+
+
+
+>  数据并行是一种提高训练吞吐量的方法，它将模型参数和优化器状态复制到多个GPU上，然后将
+>
+> 训练数据平均分配到这些GPU上，
+>
+> 这样每个GPU只需要处理分配给它的数据，然后执行前向传播、反向传播获取梯度
+>
+> 当所有GPU执行完毕后，该策略会将不同GPU的梯度进行平均，得到整体的梯度来一次性同一更新所有GPU上的模型参数
+
+如图所示,四条数据被分成两份,  由两张卡进行分别计算,然后我们会将两张卡的梯度进行平均后再更新模型,这  样便等效于执行了批次为 4 的梯度更新。
+
+
+
+DDP的优势
+使用DDP进行分布式训练有以下几个优势：
+
+a. 加速训练：通过数据并行，DDP能够在多个设备或节点上同时处理不同批次的数据，从而加快训练速度。
+
+b. 内存效率：DDP在每个设备上只保存模型的局部副本和相应的梯度，而不是整个模型的副本，这样可以节省内存。
+
+c. 不需要额外的代码：在PyTorch中，使用DDP进行分布式训练几乎不需要修改您的原始模型和训练代码。
+
+
+分布式数据并行（DistributedDataParallel，DDP）。DDP采用Ring-All-Reduce架构，其训练过程是多进程的。如果要用DDP来进行训练，我们通常需要修改三个地方的代码：数据读取器dataloader，日志输出print，指标评估evaluate。其代码实现略微复杂，不过我们只需要始终牢记一点即可：**每一块GPU都对应一个进程，除非我们手动实现相应代码，不然各个进程的数据都是不互通的。Pytorch只为我们实现了同步梯度和参数更新的代码，其余的需要我们自己实现。**
+
+
+
+DDP的训练过程可以总结为如下步骤：
+
+1）在训练开始时，整个数据集被均等分配到每个GPU上。每个GPU独立地对其分配到的数据进行前向传播（计算预测输出）和反向传播（计算梯度）。
+
+2）同步各个GPU上的梯度，以确保模型更新的一致性，该过程通过Ring-All-Reduce算法实现。
+
+3）一旦所有的GPU上的梯度都同步完成，每个GPU就会使用这些聚合后的梯度来更新其维护的模型副本的参数。因为每个GPU都使用相同的更新梯度，所以所有的模型副本在任何时间点上都是相同的。
+
+
+
+###### Ring-All-Reduce算法
+
+Ring-All-Reduce架构是一个环形架构，所有GPU的位置都是对等的。每个GPU上都会维持一个模型的副本，并且只需要和它相连接的两个GPU通信。
+
+对于第k个GPU而言，只需要接收来自于第k-1个GPU的数据，并将数据汇总后发送给第k+1个GPU。这个过程在环中持续进行，每个GPU轮流接收、聚合并发送梯度。
+
+经过 N 次的迭代循环后（N是GPU的数量），每个GPU将累积得到所有其他GPU的梯度数据的总和。此时，每个GPU上的梯度数据都是完全同步的。
+
+DDP的通信开销与GPU的数量无关，因而比DP更为高效。如果你的训练数据达到了十万这个量级，并且需要使用4卡及以上的设备来进行训练，DDP将会是你的最佳选择。
+
+
+
+
+
+ 
+
+
+
+ 
 

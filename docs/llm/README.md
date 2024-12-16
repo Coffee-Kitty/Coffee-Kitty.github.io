@@ -7,5 +7,7 @@
 * [ARE](llm/ARE.md)
 
 * [Causality_Analysis](llm/Casper.md)
+* [LLMBOOK](llm/LLMBOOK.md)
+* [RLHF](llm/RLHF.md)
 
 
