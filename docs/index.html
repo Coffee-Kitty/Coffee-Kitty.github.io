@@ -18,20 +18,75 @@
       name: 'coffeecat',
       repo: 'https://github.com/Coffee-Kitty/Coffee-Kitty.github.io',//配置仓库地址
       loadSidebar: true,//开启侧边栏
-      subMaxLevel:2,//侧边栏生成目录最大层数为2
+      subMaxLevel:0,//侧边栏生成目录最大层数为2
       coverpage: true, //开启封面
       loadNavbar: true,//顶部导航栏
+      search: 'auto',//全文搜索
+      toc: {//文章内导航
+        scope: '.markdown-section',
+        headings: 'h1, h2, h3, h4, h5, h6',
+        title: 'Table of Contents',
+      },
+      copyCode: {//代码复制
+          // buttonText : 'buttonText:String',
+          // errorText : 'errorText:String',
+          // successText: 'successText:String'
+          buttonText: {
+              '/zh-cn/': '点击复制',
+              '/ru/': 'Скопировать в буфер обмена',
+              '/de-de/': 'Klicken Sie zum Kopieren',
+              '/es/': 'Haga clic para copiar',
+              '/': 'Copy to clipboard'
+          },
+          errorText: {
+              '/zh-cn/': '错误',
+              '/ru/': 'ошибка',
+              '/': 'Error'
+          },
+          successText: {
+              '/zh-cn/': '复制',
+              '/ru/': 'Скопировано',
+              '/de-de/': 'Kopiert',
+              '/es/': 'Copiado',
+              '/': 'Copied'
+          },
+          
+      },
+      latex: {//latex支持
+        inlineMath   : [['$', '$'], ['@', '@']],
+        displayMath  : [['$$', '$$'], ['@@', '@@']],
+      },
+
     }
   </script>
   <!-- Docsify v4 -->
   <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
   <!-- 下面为插件 -->
+  <!-- 文章内导航 -->
+  <script src="https://unpkg.com/docsify-toc@1.0.0/dist/toc.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/docsify-toc@1.0.0/dist/toc.css">
   <!-- 图片压缩插件 -->
   <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/zoom-image.min.js"></script>
   <!-- 复制到剪切板插件 -->
   <script src="//cdn.jsdelivr.net/npm/docsify-copy-code/dist/docsify-copy-code.min.js"></script>
   <!-- python代码高亮 -->
   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
-  
+  <!-- 代码复制 -->
+  <script src="//cdn.jsdelivr.net/npm/docsify-copy-code"></script>
+  <!-- 侧边栏折叠 -->
+  <script src="//cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/docsify-sidebar-collapse.min.js"></script>
+  <!-- 箭头型图标指示折叠 -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/sidebar.min.css"/>
+  <!-- latex语法解析 -->
+  <script src="//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-latex@0"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-latex.min.js"></script>
+
+
+  <!-- or <script src="//cdn.jsdelivr.net/gh/upupming/docsify-katex/dist/docsify-katex.js"></script> -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css" />
+  <!-- 全文搜索 -->
+  <script src="//unpkg.com/docsify/lib/plugins/search.js"></script>
+
 </body>
 </html>
