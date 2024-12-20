@@ -2411,7 +2411,7 @@ if __name__ == "__main__":
 
 ### lora
 
-这里lora用的
+这里lora用的peft库
 
 ```python
 def find_linear_with_keys(model, keys=["wq", "wk"]):
@@ -2444,13 +2444,41 @@ def init_model():
 
 ```
 
-
-
 train_epoch函数还是那个样子，主要差别在于Dataset里加载的X,Y，loss
 
 
 
 跑10个epoch试试
+
+总共跑了18个小时左右
+
+接着合并权重并保存：
+
+```python
+moe_path = '_moe' if lm_config.use_moe else ''
+ckp = f'./out/pretrain_{lm_config.dim}{moe_path}.pth'
+state_dict = torch.load(ckp, map_location=args.device)
+unwanted_prefix = '_orig_mod.'
+for k, v in list(state_dict.items()):
+    if k.startswith(unwanted_prefix):
+        state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+model.load_state_dict(state_dict, strict=False)
+
+ 
+model = PeftModel.from_pretrained(model, args.save_dir)
+# 合并并卸载 LoRA 权重
+model = model.merge_and_unload()
+
+ckp = f'{args.save_dir}/lora_sft{lm_config.dim}{moe_path}.pth'
+
+if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+    state_dict = model.module.state_dict()
+else:
+    state_dict = model.state_dict()
+
+torch.save(state_dict, ckp)
+
+```
 
 
 
@@ -2460,15 +2488,326 @@ train_epoch函数还是那个样子，主要差别在于Dataset里加载的X,Y�
 
 ### DPO
 
+关于PPO，可以通过训练五子棋ai相似的方式来理解，而DPO，不太好理解，
+
+一般而言，就记住了个loss
+
+![image-20241218201923939](../picture.asset/image-20241218201923939.png)
+
+然后这里主要调用trl的DPOTrainer来实现。
+
+【DPO数据】：大约合并后共8万条dpo数据，人工标注的偏好数据，均来自[活字模型](https://github.com/HIT-SCIR/huozi) ，可以用于训练奖励模型，优化模型回复质量，使其更加符合人类偏好。
+
+```python
+
+def init_model():
+    device = 'cuda:0'
+    # Do model patching and add fast LoRA weights
+    
+    tokenizer_name_or_path = "./model/minimind_tokenizer"
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
+    tokenizer.pad_token = tokenizer.eos_token
+    
+    lm_config = LMConfig()
+    model = Transformer(lm_config)
+    # ckpt = "./minimind_dpo/dpo_512.pth"   
+    ckpt = "./out/full_sft_512.pth"   
+    state_dict = torch.load(ckpt,map_location=device)
+
+    model.load_state_dict(state_dict, strict=False)
+
+
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f'LLM总参数量：{count_parameters(model) / 1e6:.3f} 百万')
+    model = model.to(device)
+
+    return model, tokenizer
+
+
+if __name__ == '__main__':
+    model, tokenizer = init_model()
+    training_config = DPOConfig(
+        output_dir="./minimind_dpo",
+        per_device_train_batch_size=1,
+        remove_unused_columns=False,
+        report_to="none",
+        save_steps=2000,
+        learning_rate=4e-5,
+        save_safetensors=False, # 设置为False，改为保存为pytorch格式的模型  
+    )
+
+    dataset_path = './dataset/dpo/dpo_demo.json'
+    train_dataset = load_dataset('json', data_files=dataset_path)
+    
+    dpo_trainer = DPOTrainer(
+        model,
+        ref_model=None,
+        args=training_config,
+        beta=0.1,
+        train_dataset=train_dataset['train'],
+        tokenizer=tokenizer,
+        max_length=512,
+        max_prompt_length=512
+    )
+    dpo_trainer.train()
+    dpo_trainer.save_model("./minimind_dpo")
+
+    # 7. save
+    model = dpo_trainer.model
+    ckp = f'./minimind_dpo/dpo_512.pth'
+
+    if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+        state_dict = model.module.state_dict()
+    else:
+        state_dict = model.state_dict()
+
+    torch.save(state_dict, ckp)
+```
+
+
+
 
 
 
 
 ## 评测
 
+> C-EVAL[279] 是一个旨在评估基于<font color='red'>中文语境</font>的基础模型在<font color='red'>知识和推理能力</font>方面的能力的评估  工具。它<font color='red'>类似于 MMLU 基准评测</font>,<font color='green'>包含了四个难度级别的多项选择题:初中、高中、大学和专业。</font> 除了英语科目外,C-EVAL 还包括了初中和高中的标准科目。在大学级别,C-EVAL 选择了我国教  育部列出的所有 13 个官方本科专业类别中的 25 个代表性科目,每个类别至少选择一个科目,以  确保领域覆盖的全面性。在专业层面上,C-EVAL 参考了中国官方的国家职业资格目录,并选择了  12 个有代表性的科目,例如医生、法律和公务员等。这些科目按照主题被分为四类:STEM(科  学、技术、工程和数学)、社会科学、人文学科和其他领域。C-EVAL 共包含 52 个科目,并按照其  所属类别进行了划分,具体信息可参见图8.17。<font color='green'>C-EVAL 还附带有 C-EVAL HARD,这是 C-EVAL 中非常具有挑战性的一部分主题(子集),需要高级推理能力才能解决。</font>
+>
+> 
+>
+> ![image-20241218161124534](../picture.asset/image-20241218161124534.png)
+>
+> 
+>
+> C-Eval包含三份数据分别是<font color='purple'>dev，val和test</font>，其中dev数据有答案并且带有答案解释，目的是用来构建CoT思维链的few-shot提示语，val数据集有答案，而test数据集没有答案，<font color='red'>一般的，利用dev的few-shot在val数据做离线测试获得C-Eval评分，而在test数据集上提交答案给C-Eval官网获得最终得分。</font>
+>
+> ![image-20241218161214641](../picture.asset/image-20241218161214641.png)
 
 
 
+CEval评测 经过full-sft的模型，
+
+> 请注意： 这里只是简单的 zero-shot的评测了一下val数据集
+
+结果如下：
+
+总题数: 1346
+
+总正确数: 317
+
+总正确率: 23.55%
+
+```python
+import random
+import time
+import os
+
+import pandas as pd
+import torch
+import warnings
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from model.model import Transformer
+from model.LMConfig import LMConfig
+import torch.nn.functional as F
+
+warnings.filterwarnings('ignore')
+
+
+def init_model(lm_config):
+    tokenizer = AutoTokenizer.from_pretrained('./model/minimind_tokenizer',
+                                              trust_remote_code=True, use_fast=False)
+    model_from = 1  # 1从权重，2用transformers
+
+    if model_from == 1:
+        moe_path = '_moe' if lm_config.use_moe else ''
+        # ckp = f'./out/single_chat/full_sft_{lm_config.dim}{moe_path}.pth'
+        ckp = f'./out/full_sft_{lm_config.dim}{moe_path}.pth'
+
+        model = Transformer(lm_config)
+        state_dict = torch.load(ckp, map_location=device)
+
+        # 处理不需要的前缀
+        unwanted_prefix = '_orig_mod.'
+        for k, v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+        # 加载到模型中
+        model.load_state_dict(state_dict, strict=False)
+    else:
+        model = AutoModelForCausalLM.from_pretrained('minimind', trust_remote_code=True)
+    model = model.to(device)
+
+    return model, tokenizer
+
+
+if __name__ == "__main__":
+    # -----------------------------------------------------------------------------
+    seed = random.randint(1, 2000)
+    # device = 'cuda:0'
+    device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
+    dtype = 'bfloat16'
+    lm_config = LMConfig()
+    # -----------------------------------------------------------------------------
+
+    model, tokenizer = init_model(lm_config)
+    model = model.eval()
+
+    # 消息模板，具体实现根据你的tokenizer进行调整
+    messages_origin = [{"role": "system", "content": "开始回答问题"}]
+
+    # 定义文件目录
+    File_Dir = "ceval/ceval-exam/val"
+    results_dir = "ceval/ceval_result"
+
+    # 确保结果目录存在
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+
+    # 用于记录所有文件的总正确数和总题数
+    total_correct = 0
+    total_questions = 0
+
+    # 遍历目录下的所有CSV文件
+    for filename in os.listdir(File_Dir):
+        if filename.endswith('.csv'):
+            file_path = os.path.join(File_Dir, filename)
+            test_df = pd.read_csv(file_path)
+
+            # 存储结果的DataFrame
+            results_df = pd.DataFrame(columns=['question', 'A', 'B', 'C', 'D', 'answer', 'llm_answer', 'is_right'])
+            total_correct_in_file = 0  # 用于记录当前文件的正确数
+
+            for row in test_df.itertuples(index=True, name='Pandas'):
+                id = getattr(row, 'id')
+                question = getattr(row, 'question')
+                A = getattr(row, 'A')
+                B = getattr(row, 'B')
+                C = getattr(row, 'C')
+                D = getattr(row, 'D')
+                right_answer = getattr(row, 'answer')
+
+                prompt = f'{question}。选择 A: {A}, B: {B}, C: {C}, D: {D}'
+
+                messages = messages_origin.copy()
+                messages.append({"role": "user", "content": prompt})
+
+                # print(messages)
+                new_prompt = tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True
+                )
+                x = tokenizer(new_prompt).data['input_ids']
+                x = (torch.tensor(x, dtype=torch.long, device=device)[None, ...])
+                res_ids = model.eval_answer(x)
+
+                # 假设 res_ids 是模型的 logits 输出，我们使用 softmax 转换为概率分布
+                probabilities = F.softmax(res_ids, dim=-1)
+
+                # 定义每个选项的 token id
+                A_id = tokenizer('A').data['input_ids']
+                B_id = tokenizer('B').data['input_ids']
+                C_id = tokenizer('C').data['input_ids']
+                D_id = tokenizer('D').data['input_ids']
+
+                # 获取每个选项的概率
+                A_prob = probabilities[0, A_id].item()
+                B_prob = probabilities[0, B_id].item()
+                C_prob = probabilities[0, C_id].item()
+                D_prob = probabilities[0, D_id].item()
+
+                # 将每个选项的概率放入字典中便于处理
+                options_prob = {
+                    'A': A_prob,
+                    'B': B_prob,
+                    'C': C_prob,
+                    'D': D_prob
+                }
+
+                # 找到具有最大概率的选项
+                max_option_answer = max(options_prob, key=options_prob.get)
+
+                # 比较答案并记录
+                is_right = 1 if max_option_answer == right_answer else 0
+                results_df = results_df.append({
+                    'question': question,
+                    'A': A,
+                    'B': B,
+                    'C': C,
+                    'D': D,
+                    'answer': right_answer,
+                    'llm_answer': max_option_answer,
+                    'is_right': is_right
+                }, ignore_index=True)
+                # print(f'id: {id} 问题: {question[:10]}... 是否正确: {is_right}')
+
+                if is_right:
+                    total_correct_in_file += 1
+
+            total_correct += total_correct_in_file
+            total_questions += len(test_df)
+
+            # 计算当前文件的正确率并添加到结果DataFrame的最后一行
+            accuracy = total_correct_in_file / len(test_df)
+            results_df = results_df.append({
+                'question': '-',
+                'A': '-',
+                'B': '-',
+                'C': '-',
+                'D': '-',
+                'answer': f'文件 {filename} 的正确率: {accuracy:.2%}',
+                'llm_answer': '-',
+                'is_right': '-'
+            }, ignore_index=True)
+
+            print(f'{filename.split(".")[0]} ，{total_correct_in_file}/{len(test_df)}，正确率: {accuracy:.2%}')
+
+            # 保存结果到CSV
+            results_path = os.path.join(results_dir, f"{filename.split('.')[0]}_result.csv")
+            results_df.to_csv(results_path, index=False)
+
+    # 计算总正确率
+    total_accuracy = total_correct / total_questions if total_questions > 0 else 0
+
+    # 将各个文件的正确率以及总正确率写入到 "ceval/ceval_result/test.log"
+    log_path = os.path.join(results_dir, "test.log")
+    with open(log_path, 'w') as log_file:
+        result = f"总题数: {total_questions}\n总正确数: {total_correct}\n总正确率: {total_accuracy:.2%}"
+        log_file.write(result)
+
+        print(result)
+
+        for filename in os.listdir(File_Dir):
+            if filename.endswith('.csv'):
+                accuracy_file = pd.read_csv(os.path.join(results_dir, f"{filename.split('.')[0]}_result.csv"))
+                last_row = accuracy_file.iloc[-1]['answer']
+                log_file.write(f"{filename}: {last_row}\n")
+
+```
+
+
+
+CEval评测 经过lora-sft的模型，
+
+![image-20241218190549564](../picture.asset/image-20241218190549564.png)
+
+
+
+
+
+
+
+## 部署
+
+#todo gradio
+
+
+
+## 推理增强
+
+#todo mctsr
 
 
 

@@ -1,3 +1,5 @@
+# LLMBook
+
 [大语言模型 赵鑫 - 人大](https://llmbook-zh.github.io/LLMBook.pdf)
 
 [大规模语言模型 从理论到实践 - 复旦](https://intro-llm.github.io/chapter/LLM-TAP.pdf)
@@ -349,11 +351,19 @@ DeepMind 和 New York University 的研究人员提出了<font color='green'>“
 
 
 
+![image-20241218141548945](../picture.asset/image-20241218141548945.png)
+
 混淆矩阵：
 
 ​	![image-20241218120853495](../picture.asset/image-20241218120853495.png)
 
 其中,TP(True Positive,<font color='red'>真阳性</font>)表示被模型预测为正的正样本;FP(False Positive,假阳性)表示被模型预测为正的负样本;FN(False Negative,假阴性)表示被模型预测为负的正样本;TN(True Negative,<font color='red'>真阴性</font>)表示被模型预测为负的负样本。
+
+> <font color='red'>T、F真 假表示预测结果</font>是对的还是错的
+>
+> <font color='red'>P、N表示模型预测</font>为正例还是负例
+>
+> 比如 真正例，就是说预测为正例并且预测正确
 
 根据混淆矩阵,常见的分类任务评估指标定义如下：
 
@@ -365,13 +375,13 @@ $Accuracy = \frac{TP+TN}{TP+FP+TN+FN}$
 
 2. 精确率 (Precision,P):<font color='green'>表示分类预测是正例的结果中,确实是正例</font>的比例。
 
-精确率也称查准率、精确度。
+精确率也称<font color='red'>查准率</font>、精确度。
 
 $Precision = \frac{TP}{TP+FP}$
 
 
 
-3. 召回率(Recall,R):表示<font color='green'>所有正例的样本中,被正确找出</font>的比例。召回率也称查全率,
+3. 召回率(Recall,R):表示<font color='green'>所有正例的样本中,被正确找出</font>的比例。召回率也称<font color='red'>查全率</font>
 
 $Recall = \frac{TP}{TP+FN}$
 
@@ -383,6 +393,16 @@ $Recall = \frac{TP}{TP+FN}$
 
 $F1 = \frac{2 \times P \times R}{P + R}$
 
+![image-20241218142537164](../picture.asset/image-20241218142537164.png)
+
+$F_\beta$指标
+
+![image-20241218142644645](../picture.asset/image-20241218142644645.png)
+
+
+
+
+
 
 
 5. PR曲线(PR Curve):
@@ -393,19 +413,117 @@ PR曲线横坐标为召回率Recall,纵坐标为精确率Precision,
 
 绘制步骤如下:(1)  将预测结果按照预测为正类概率值排序;(2) 将概率阈值由 1 开始逐渐降低,逐个将样本作  为正例进行预测,并计算出当前的 P,R 值;(3) 以精确度 P 为纵坐标,召回率 R 为横坐标绘  制点,将所有点连成曲线后构成 PR 曲线,如图8.10所示。
 
-平衡点(Break-Even Point,BPE)  为精确度等于召回率时的取值,值越大代表效果越优。
+
+
+> ![image-20241218143204732](../picture.asset/image-20241218143204732.png)
+>
+> 模型给出的预测结果 y^pred是个概率值
+>
+> 需要确立一个概率阈值，当大于此值时，我们认为为正例否则为反例
+>
+> 从大到小确立概率阈值，按照此过程中的到的P、R值来画出PR曲线
+>
+> 
+>
+> ![image-20241218145132462](../picture.asset/image-20241218145132462.png)
+> ![image-20241218145126179](../picture.asset/image-20241218145126179.png)
+
+  
+
+平衡点(Break-Even Point,BPE)  为精确度等于召回率时的取值,值越大代表效果越优。                                                
+
+6. ROC曲线
+
+![image-20241218145808857](../picture.asset/image-20241218145808857.png)
+
+![image-20241218145903811](../picture.asset/image-20241218145903811.png)
+
+
+
+7. AUC 曲线下的面积
+
+不管是PR还是ROC，其下的面积都可以说AUC
+
+![image-20241218145944094](../picture.asset/image-20241218145944094.png)
+
+
+
+##### 回归任务
+
+主要是平均绝对误差和均方误差
+
+##### 语言模型评估指标
+
+
+
+语言模型最直接的测评方法就是使用模型计算测试集的概率,或者利用交叉熵(Cross-entropy)  和<font color='green'>困惑度</font>(Perplexity)等派生测度。
+
+
+
+![image-20241218150522090](../picture.asset/image-20241218150522090.png)
+
+
+
+![image-20241218152351424](../picture.asset/image-20241218152351424.png)
+
+
+
+困惑度的计算可以视为模型分配给测试集中每一个词汇的概率的几何平均值的倒数,它和交叉熵的关系为:
+
+![image-20241218152427899](../picture.asset/image-20241218152427899.png)
+
+
+
+<font color='green'>交叉熵和困惑度越小,语言模型性能就越好。</font>不同的文本类型其合理的指标范围是不同的,对  于英文来说,n 元语言模型的困惑度约在 50 到 1000 之间,相应的,交叉熵在 6 到 10 之间。
+
+
+
+
+
+
 
 #### 评估方法
 
+1. 人工评估
+2. 大模型评估
+3. 对比评估
 
 
 
+#### 评估实践
 
 
 
+1. Massive Multitask Language Understanding(MMLU)[228] 基准测试目标是衡量语言模型在<font color='green'>预训练</font>期间获取的<font color='green'>知识</font>
+
+MMLU 基准测试总计包含 15908 道多选题。
+
+将所收集到的 15908 个问题切分为了少样本开发集、验证集和测试集
 
 
 
+2. C-EVAL
+
+C-EVAL[279] 是一个旨在评估基于<font color='red'>中文语境</font>的基础模型在<font color='red'>知识和推理能力</font>方面的能力的评估  工具。它<font color='red'>类似于 MMLU 基准评测</font>,<font color='green'>包含了四个难度级别的多项选择题:初中、高中、大学和专业。</font> 除了英语科目外,C-EVAL 还包括了初中和高中的标准科目。在大学级别,C-EVAL 选择了我国教  育部列出的所有 13 个官方本科专业类别中的 25 个代表性科目,每个类别至少选择一个科目,以  确保领域覆盖的全面性。在专业层面上,C-EVAL 参考了中国官方的国家职业资格目录,并选择了  12 个有代表性的科目,例如医生、法律和公务员等。这些科目按照主题被分为四类:STEM(科  学、技术、工程和数学)、社会科学、人文学科和其他领域。C-EVAL 共包含 52 个科目,并按照其  所属类别进行了划分,具体信息可参见图8.17。<font color='green'>C-EVAL 还附带有 C-EVAL HARD,这是 C-EVAL 中非常具有挑战性的一部分主题(子集),需要高级推理能力才能解决。</font>
+
+![image-20241218153603624](../picture.asset/image-20241218153603624.png)
 
 
 
+3. Chatbot Arena 评估
+
+Chatbot Arena 是一个以众包方式进行匿名对比评价的大语言模型基准评测平台[258]。研究人员构造了多模型服务系统 FastChat。<font color='green'>当用户进入评测平台后可以输入问题,可以同时得到两个匿名模型的回答。在从两个模型获得回复后,用户可以继续对话或投票选择他们认为更好的模型.</font>
+
+采用了 Elo 评级系统
+
+![image-20241218154043351](../picture.asset/image-20241218154043351.png)
+
+根据该矩阵可以看到 GPT-4 相对于 GPT-3.5-Turbo 的胜率为 79%,而相对于 LLaMA-13B 的胜率为94%。
+
+
+
+4. LLMEVAL 评估
+
+<font color='red'>LLMEVAL-1</font> 评测涵盖了 17 个大类、453 个问题,包括事实性问答、阅读理解、框架生成、段落重写、摘要、数学解题、推理、诗歌生成、编程等各个领域。针对生成内容的质量,细化为了 5 个评分项,分别是:正确性、流畅性、信息量、逻辑性和无害性。
+
+<font color='red'>LLMEVAL-2</font>的目标是以用户日常使用为主线,重点考察大模型在解决不同专业本科生和研究生在日常学习中所遇到问题的能力。涵盖的学科非常广泛,包括计算机、法学、经济学、医学、化学、物理学等 12 个领域。
