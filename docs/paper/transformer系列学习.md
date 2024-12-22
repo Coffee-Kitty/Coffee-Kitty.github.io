@@ -2,13 +2,19 @@
 
 [Datawhale tinyTransformer](https://github.com/datawhalechina/tiny-universe/tree/main/content/TinyTransformer)
 
+https://www.zhihu.com/question/471328838/answer/51545078376?utm_campaign=shareopn&utm_medium=social&utm_psn=1853147405106688000&utm_source=wechat_session
 
+
+
+# Transformer升级
 
 
 
 ## Tokenizer
 
 对于输入文本序列，首先要进行分词，而Transformer所采用的分词算法为子词分词算法——BPE(Byte Pair Encoding)。
+
+> 历史 jieba分词
 
 ### BPE分词算法
 
@@ -139,20 +145,68 @@ vocab.append("th")
 
 
 
+## Embeding
+
+> 解决词的编码问题和同义关系问题
+
+> 2013年Google开源了`word2vec`工具，它可以进行词向量训练，加载已有模型进行增量训练，求两个词向量相似度
+
+> nn.Embedding() 是 PyTorch 深度学习框架中的一个类，用于创建词嵌入矩阵。它的输入是一个整数，代表词汇表中的单词索引，输出是与之对应的词向量。词嵌入矩阵可以是预训练的（如使用 Word2Vec 或 GloVe 生成的词向量），也可以是随机初始化的，让模型在训练过程中学习优化。
+>
 
 
-Embeding
 
-Model
 
-​	attention
 
-​	multi-head attention
 
-​	self-attention
 
-​	mask self attention
 
-Train
 
-Eval
+## Attention
+
+https://github.com/datawhalechina/tiny-universe/tree/main/content/TinyTransformer
+
+https://kexue.fm/archives/4765
+
+https://kexue.fm/archives/7546
+
+https://kexue.fm/archives/8934
+
+### self-attention
+
+
+
+### mask self attention
+
+
+
+### MHA、MQA、GQA
+
+
+
+### Linear attention
+
+
+
+### Sparse Attention
+
+
+
+### Flash Attention
+
+
+
+
+
+## Mlp
+
+
+
+### SwishGlu
+
+
+
+### MOE
+
+
+
