@@ -194,15 +194,78 @@ https://kexue.fm/archives/8934
 
 ### Flash Attention
 
+https://www.bilibili.com/video/BV1UT421k7rA/?spm_id_from=333.337.search-card.all.click&vd_source=39767bfbc4ae772d0c2f8d8b32b54ce6
+
+标准的attention计算如下图：
+
+![image-20241222140408636](../picture.asset/image-20241222140408636.png)
+
+> NVIDIA GPU 中的内存(显存)按照它们物理上是在 GPU 芯片内部还是板卡 RAM 存储芯片上,决定了它们的速度、大小以及访问限制。
+> <img src="../picture.asset/image-20241222140617957.png" alt="image-20241222140617957" style="zoom:50%;" />
+>
+> GPU 显存分为全局内存(Global memory)、本地内存  (Local memory)、共享内存(Shared memory,SRAM)、寄存器内存(Register memory)、常量内存  (Constant memory)、纹理内存(Texture memory)等六大类。
+>
+> 全局内存和本地内存使用的高带宽显存(High Bandwidth Memory,**<font color='red'>HBM</font>**)位于板卡 RAM 存储芯片上,该部分内存容量很大。
+> <img src="../picture.asset/image-20241222141533028.png" alt="image-20241222141533028" style="zoom:50%;" />
+
+在 GPU 中进行计算时,传统的方法还需要引入两个中间矩阵 S 和 P 并存储到全局内存中。
+S = Q × K, P = Softmax(S), O = P × V
+按照上述计算过程,需要首先从全局内存中读取矩阵 Q 和 K,并将计算好的矩阵 S 再写入全局内存,之后再从全局内存中获取矩阵 S,计算 Softmax 得到矩阵 P ,再写入全局内存,之后读取矩阵 P 和矩阵 V ,计算得到矩阵 O。
+
+这样的过程会极大占用显存的带宽。在自注意力机制中,计算速度比内存速度快得多,因此计算效率越来越多地受到全局内存访问的瓶颈.
+
+
+FlashAttention[61] 就是通过利用 GPU 硬件中的特殊设计,针对全局内存和共享存储的 I/O 速 度的不同,尽可能地***<font color='red'>避免 HBM 中读取或写入注意力矩阵</font>***。FlashAttention 目标是***<font color='red'>尽可能高效地使用 SRAM 来加快计算速度</font>***,避免从全局内存中读取和写入注意力矩阵。
+
+![image-20241222141624499](../picture.asset/image-20241222141624499.png)
 
 
 
+首先忽略softmax操作，简单认为 $Q \times K^T$之后直接跟V乘，得到O，如下图
+
+![image-20241222142058385](../picture.asset/image-20241222142058385.png)
+
+> ![image-20241222142328126](../picture.asset/image-20241222142328126.png)
+>
+> ![image-20241222142343629](../picture.asset/image-20241222142343629.png)
+>
+> ![image-20241222142519326](../picture.asset/image-20241222142519326.png)
+>
+> 所以目前最大的问题，在于添加了softmax操作后如何进行以上过程
+
+![image-20241222143539349](../picture.asset/image-20241222143539349.png)
+
+ 目前，训练都是混合精度FP16，由此引进 safe_max
+
+![image-20241222143845751](../picture.asset/image-20241222143845751.png)
+
+> 实现softmax的分块！！！
+>
+> ![image-20241222144222319](../picture.asset/image-20241222144222319.png)
+
+
+
+![image-20241222144721955](../picture.asset/image-20241222144721955.png)
+
+![image-20241222144818944](../picture.asset/image-20241222144818944.png)
+
+
+
+上面介绍的是flash attentin1
+
+关于flash attention2，主要是工程上的优化
+
+![image-20241222144947602](../picture.asset/image-20241222144947602.png)
 
 ## Mlp
 
 
 
 ### SwishGlu
+
+
+
+
 
 
 

@@ -274,6 +274,12 @@ def eval_tokenizer():
 
 ### pretrain数据
 
+
+
+
+
+
+
 ```bash
 wget https://huggingface.co/datasets/jingyaogong/minimind_dataset/resolve/main/pretrain_data.csv
 ```
@@ -1172,6 +1178,16 @@ https://wandb.ai/coffeecat-university/MiniMind-Pretrain?nw=nwusercoffeecat
 
 ![image-20241121144557952](../picture.asset/image-20241121144557952.png)
 
+> ```python
+>  CUDA_VISIBLE_DEVICES=0,3 torchrun --nproc_per_node 2 1-pretrain.py 
+> ```
+>
+> 再次看下显存占用和 显存利用率
+>
+> ![image-20241224142755558](../picture.asset/image-20241224142755558.png)
+
+
+
 预训练代码如下:
 
 ```python
@@ -1854,6 +1870,16 @@ class SFTDataset(Dataset):
 torchrun --nproc_per_node 2 3-full_sft.py --use_wandb
 ```
 
+> ```python
+>  CUDA_VISIBLE_DEVICES=0,3 torchrun --nproc_per_node 2 3-full_sft.py
+> ```
+>
+> 同样注意：使用两张卡，分别是cuda:0和cuda:3
+>
+> ![image-20241224143405201](../picture.asset/image-20241224143405201.png)
+
+
+
 跑了15个epoch， 大概
 
 ![image-20241122142422814](../picture.asset/image-20241122142422814.png)
@@ -2446,7 +2472,10 @@ def init_model():
 
 train_epoch函数还是那个样子，主要差别在于Dataset里加载的X,Y，loss
 
-
+> ![image-20241224143605178](../picture.asset/image-20241224143605178.png)
+>
+> 这里只用了一张卡，做lora
+> ![image-20241224143623406](../picture.asset/image-20241224143623406.png)
 
 跑10个epoch试试
 
@@ -2803,6 +2832,405 @@ CEval评测 经过lora-sft的模型，
 
 #todo gradio
 
+### 将训练好的模型推送到huggingface
+
+* push_to_hub api接口
+
+首先登录
+
+
+```python
+from huggingface_hub import notebook_login
+
+notebook_login()
+```
+
+或者在终端输入
+
+```shell
+huggingface-cli login
+```
+
+在这两种情况下，系统都会提示您输入用户名和密码，这与您用于登录 Hub 的用户名和密码相同。
+
+这之后就可以简单的push_to_hub()了
+
+```python
+from transformers import AutoModelForMaskedLM, AutoTokenizer
+
+checkpoint = "camembert-base"
+
+model = AutoModelForMaskedLM.from_pretrained(checkpoint)
+tokenizer = AutoTokenizer.from_pretrained(checkpoint)
+
+model.push_to_hub("dummy-model")
+tokenizer.push_to_hub("dummy-model")
+```
+
+<font color='red'>这将创建新的存储库 **dummy-model** 在您的个人资料中，并用您的模型文件填充它。</font> 对标记器执行相同的操作，以便所有文件现在都可以在此存储库中使用。
+
+> 如果您属于一个组织，
+> 如果您希望使用特定的 Hugging Face 令牌
+>
+> ```python
+> tokenizer.push_to_hub("dummy-model", organization="huggingface", use_auth_token="<TOKEN>")
+> ```
+
+
+
+> 简单使用
+>
+> ```shell
+> huggingface-cli login
+> ```
+>
+> ![image-20241224144445896](../picture.asset/image-20241224144445896.png)
+>
+> 在hugginface官网注册一个access token
+>
+> ![image-20241224144736054](../picture.asset/image-20241224144736054.png)
+>
+>
+> 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
+>
+> ![](../picture.asset/image-20241224181511627.png)
+> 运行如下代码将模型push到huggingface。
+>
+> ```python
+> import torch
+> import warnings
+> from transformers import AutoTokenizer, AutoModelForCausalLM
+> from model.LMConfig import LMConfig
+> from model.model import Transformer
+> 
+> warnings.filterwarnings('ignore', category=UserWarning)
+> 
+> 
+> def count_parameters(model):
+>  return sum(p.numel() for p in model.parameters() if p.requires_grad)
+> 
+> 
+> def export_transformers_model():
+>  LMConfig.register_for_auto_class()
+>  Transformer.register_for_auto_class("AutoModelForCausalLM")
+> 
+>  lm_config = LMConfig()
+>  lm_model = Transformer(lm_config)
+>  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+>  moe_path = '_moe' if lm_config.use_moe else ''
+>  ckpt_path = f'./out/full_sft_{lm_config.dim}{moe_path}.pth'
+> 
+>  state_dict = torch.load(ckpt_path, map_location=device)
+>  unwanted_prefix = '_orig_mod.'
+>  for k, v in list(state_dict.items()):
+>      if k.startswith(unwanted_prefix):
+>          state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+>  lm_model.load_state_dict(state_dict, strict=False)
+>  print(f'模型参数: {count_parameters(lm_model) / 1e6} 百万 = {count_parameters(lm_model) / 1e9} B (Billion)')
+> 
+>  lm_model.save_pretrained("minimind-v1-small", safe_serialization=True)
+> 
+> 
+> def export_tokenizer():
+>  tokenizer = AutoTokenizer.from_pretrained('./model/minimind_tokenizer',
+>                                            trust_remote_code=True, use_fast=False)
+>  tokenizer.save_pretrained("minimind-v1-small",safe_serialization=True)
+> 
+> 
+> def push_to_hf():
+>  def init_model():
+>      tokenizer = AutoTokenizer.from_pretrained('./minimind-v1-small',
+>                                                trust_remote_code=True, use_fast=False)
+>      model = AutoModelForCausalLM.from_pretrained('./minimind-v1-small', trust_remote_code=True)
+>      return model, tokenizer
+> 
+>  model, tokenizer = init_model()
+>  # 推送到huggingface
+>  model.push_to_hub("minimind-v1-small",safe_serialization=True)
+>  tokenizer.push_to_hub("minimind-v1-small", safe_serialization=True)
+> 
+> 
+> def test():
+>  def init_model():
+>      model_id = "./minimind-v1-small"
+>      tokenizer = AutoTokenizer.from_pretrained(model_id,
+>                                                trust_remote_code=True, use_fast=False)
+>      model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True)
+>      return model, tokenizer
+> 
+>  model, tokenizer = init_model()
+> 
+> if __name__ == '__main__':
+>  # 1
+>  # export_transformers_model()
+>  # # 2
+>  # export_tokenizer()
+>  # # 3
+>  # push_to_hf()
+>  test()
+> 
+> ```
+>
+> 最后成功推送，并测试成功
+>
+> ![image-20241224171623749](../picture.asset/image-20241224171623749.png)
+>
+> 当传入了safe_serialization=False时，push_to_hub会报下列错误，
+>
+> RuntimeError: The weights trying to be saved contained shared tensors [{'tok_embeddings.weight', 'output.weight'}] that are mismatching the transformers base configuration. Try saving using `safe_serialization=False` or remove this tensor sharing.
+> 然而这里由于传入了safe_serialization=True，导致忽略这些shared tensors,
+> 但是忽略这些后最终 部署的minimind生成的token基本是 杂乱无用的信息	
+> 因此，<font color='red'>需要指定safe_serialization=False</font>
+>
+> 然后重新操作，
+> 但是发现如果指定safe_serialization=False后，难以加载模型，
+> 将报错![image-20241224174629640](../picture.asset/image-20241224174629640.png)
+>
+> 诡异的是streamlit可以运行，
+>
+> ***<font color='red'>这里很玄学，我指定safe_serialization=False并且重新运行一遍后，又全都好了，有点懵</font>***
+>
+> <font color='red'>然后streamlit又崩溃了，然后我又什么都没变做了一遍，又都好了</font>
+>
+> > 最后的最后，所有的都设置为False是对的，
+> > <font color='red'>有一个问题是push_to_hub应该就只能push一次</font>，
+> > 这么多波折还有个问题时中途加载时可能错了一次模型
+
+
+
+
+
+* huggingface_hub python库
+
+**huggingface_hub** Python 库是一个包，它为模型和数据集中心提供了一组工具。
+
+<font color='red'>提供了在 git 之上工作的简单 API 来管理这些存储库的内容并集成 Hub 在您的项目和库中。</font>
+
+```python
+from huggingface_hub import (
+    # User management
+    login,
+    logout,
+    whoami,
+
+    # Repository creation and management
+    create_repo,
+    delete_repo,
+    update_repo_visibility,
+
+    # And some methods to retrieve/change information about the content
+    list_models,
+    list_datasets,
+    list_metrics,
+    list_repo_files,
+    upload_file,
+    delete_file,
+)
+```
+
+
+
+
+
+
+
+
+
+ ### 使用streamlit部署
+
+这里选择托管到huggingface的spaces中
+
+https://juejin.cn/post/7044757186064416798
+
+https://blog.csdn.net/qiaotl/article/details/130528192
+
+安装streamlit
+
+```python
+ pip install streamlit -i https://pypi.tuna.tsinghua.edu.cn/simple  
+```
+
+
+
+首先在huggingface中spaces中创建一个space，然后git clone下来，并且仅仅修改app.py即可，
+
+然后git push回去就行
+
+下面是app.py的代码
+
+> 本地测试app.py 
+> streamlit run app.py 
+
+```python
+import json
+import random
+import numpy as np
+import streamlit as st
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers.generation.utils import GenerationConfig
+
+# 设置页面标题
+st.set_page_config(page_title="MiniMind-V1")
+st.title("MiniMind-V1")
+
+# 模型路径
+model_id = "./minimind-v1"
+
+# 使用 @st.cache_resource 装饰器来缓存加载的模型和分词器，避免每次请求都重新加载
+@st.cache_resource
+def load_model_tokenizer():
+    # 加载预训练的语言模型和分词器
+    model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        trust_remote_code=True  # 如果模型有自定义代码，则信任并使用它
+    )
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_id,
+        use_fast=False,  # 不使用快速（Rust）版本的分词器
+        trust_remote_code=True
+    )
+    # 将模型设置为评估模式
+    model = model.eval()
+    # 加载生成配置
+    generation_config = GenerationConfig.from_pretrained(model_id)
+    return model, tokenizer, generation_config
+
+# 清除聊天记录
+def clear_chat_messages():
+    if 'messages' in st.session_state:
+        del st.session_state.messages
+    if 'chat_messages' in st.session_state:
+        del st.session_state.chat_messages
+
+# 初始化聊天消息
+def init_chat_messages():
+    with st.chat_message("assistant", avatar='🤖'):
+        st.markdown("我是由JingyaoGong创造的MiniMind，很高兴为您服务😄  \n"
+                    "注：所有AI生成内容的准确性和立场无法保证，不代表我们的态度或观点。")
+
+    # 如果会话状态中存在消息，则显示它们
+    if "messages" in st.session_state:
+        for message in st.session_state.messages:
+            avatar = "🫡" if message["role"] == "user" else "🤖"
+            with st.chat_message(message["role"], avatar=avatar):
+                st.markdown(message["content"])
+    else:
+        # 否则初始化会话状态中的消息列表
+        st.session_state.messages = []
+        st.session_state.chat_messages = []
+
+    return st.session_state.messages
+
+# 在侧边栏添加一些设定调整选项
+st.sidebar.title("设定调整")
+st.session_state.history_chat_num = st.sidebar.slider("携带历史对话条数", 0, 6, 0, step=2)  # 历史对话条数
+st.session_state.max_new_tokens = st.sidebar.slider("最大输入/生成长度", 256, 768, 512, step=1)  # 最大生成长度
+st.session_state.top_k = st.sidebar.slider("top_k", 0, 16, 14, step=1)  # top-k sampling 参数
+st.session_state.temperature = st.sidebar.slider("temperature", 0.3, 1.3, 0.5, step=0.01)  # 温度参数
+
+# 设置随机种子以确保结果可复现
+def setup_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+# 主函数
+def main():
+    # 加载模型和分词器
+    model, tokenizer, generation_config = load_model_tokenizer()
+    messages = init_chat_messages()
+
+    # 当用户通过 chat_input 输入时触发
+    if prompt := st.chat_input("Shift + Enter 换行, Enter 发送"):
+        with st.chat_message("user", avatar='🧑‍💻'):
+            st.markdown(prompt)
+            messages.append({"role": "user", "content": prompt})
+            st.session_state.chat_messages.append({"role": "user", "content": '请问，' + prompt + '？'})
+        
+        with st.chat_message("assistant", avatar='🤖'):
+            placeholder = st.empty()  # 创建一个占位符用于实时更新助手的回答
+            # 生成一个随机种子
+            random_seed = random.randint(0, 2 ** 32 - 1)
+            setup_seed(random_seed)
+
+            # 准备提示文本，包括历史对话和当前问题
+            new_prompt = tokenizer.apply_chat_template(
+                st.session_state.chat_messages[-(st.session_state.history_chat_num + 1):],
+                tokenize=False,
+                add_generation_prompt=True
+            )[-(st.session_state.max_new_tokens - 1):]
+
+            # 对提示文本进行编码
+            x = tokenizer(new_prompt).data['input_ids']
+            x = (torch.tensor(x, dtype=torch.long)[None, ...])
+
+            # 开始无梯度推理，生成回答
+            with torch.no_grad():
+                res_y = model.generate(
+                    x,
+                    do_sample=True,  # 是否启用采样
+                    max_new_tokens=st.session_state.max_new_tokens,  # 最大新生成的token数量
+                    temperature=st.session_state.temperature,  # 控制生成的多样性
+                    top_k=st.session_state.top_k,  # top-k sampling 参数
+                    stream=True  # 流式生成
+                )
+                
+                try:
+                    y = next(res_y)  # 获取第一个生成的token
+                except StopIteration:
+                    return
+
+                while y is not None:
+                    answer = tokenizer.decode(y[0].tolist())  # 解码生成的token为字符串
+                    if answer and answer[-1] == '�':  # 如果解码结果包含无效字符，则继续获取下一个token
+                        try:
+                            y = next(res_y)
+                        except StopIteration:
+                            break
+                        continue
+                    if not len(answer):  # 如果解码结果为空，则继续获取下一个token
+                        try:
+                            y = next(res_y)
+                        except StopIteration:
+                            break
+                        continue
+                    placeholder.markdown(answer)  # 更新占位符中的回答
+                    try:
+                        y = next(res_y)
+                    except StopIteration:
+                        break
+
+            # 移除原始提示，只保留生成的回答部分
+            assistant_answer = answer.replace(new_prompt, "")
+            messages.append({"role": "assistant", "content": assistant_answer})
+            st.session_state.chat_messages.append({"role": "assistant", "content": assistant_answer})
+
+    # 添加一个按钮用于清空对话
+    st.button("清空对话", on_click=clear_chat_messages)
+
+if __name__ == "__main__":
+    main()
+```
+
+测试结果如下图所示
+
+![image-20241224173647631](../picture.asset/image-20241224173647631.png)
+
+使用git psuh后报下列错误
+
+![image-20241224181716261](../picture.asset/image-20241224181716261.png)
+
+> 这个问题也是 死活解决不了
+>
+> 最后干脆，直接在网站上提交app.py和requirements.txt，并且编辑
+> 最终成功部署，如下图
+> ![image-20241224211640061](../picture.asset/image-20241224211640061.png)
+
 
 
 ## 推理增强
@@ -2812,6 +3240,28 @@ CEval评测 经过lora-sft的模型，
 
 
 # 分析
+
+### 数据集
+
+预训练用了seq-Monkey通用文本数据集，
+
+该数据集是由多种公开来源的数据（如网页、百科、博客、开源代码、书籍等）汇总清洗而成，
+
+格式统一为jsonl，经过严格筛选、去重、总量大概在**10Btoken**，适合中文大语言模型的训练
+
+
+
+sft用的是匠数大模型sft数据集。
+
+是一个经过数据清洗的包含10M条中文数据、2M条英文数据的数据集。
+
+总量大概在**3Btoken**。
+
+
+
+DPO数据，来自活字模型，大约8万条dpo数据，人工标注的偏好数据。
+
+
 
 ## 梯度累加与裁剪
 
@@ -3178,17 +3628,17 @@ b. 内存效率：DDP在每个设备上只保存模型的局部副本和相应�
 c. 不需要额外的代码：在PyTorch中，使用DDP进行分布式训练几乎不需要修改您的原始模型和训练代码。
 
 
-分布式数据并行（DistributedDataParallel，DDP）。DDP采用Ring-All-Reduce架构，其训练过程是多进程的。如果要用DDP来进行训练，我们通常需要修改三个地方的代码：数据读取器dataloader，日志输出print，指标评估evaluate。其代码实现略微复杂，不过我们只需要始终牢记一点即可：**每一块GPU都对应一个进程，除非我们手动实现相应代码，不然各个进程的数据都是不互通的。Pytorch只为我们实现了同步梯度和参数更新的代码，其余的需要我们自己实现。**
+分布式数据并行（DistributedDataParallel，DDP）。***DDP采用Ring-All-Reduce架构***，其训练过程是多进程的。如果要用DDP来进行训练，我们通常需要修改三个地方的代码：数据读取器dataloader，日志输出print，指标评估evaluate。其代码实现略微复杂，不过我们只需要始终牢记一点即可：**每一块GPU都对应一个进程，除非我们手动实现相应代码，不然各个进程的数据都是不互通的。Pytorch只为我们实现了同步梯度和参数更新的代码，其余的需要我们自己实现。**
 
 
 
-DDP的训练过程可以总结为如下步骤：
+***DDP的训练过程可以总结为如下步骤：***
 
-1）在训练开始时，整个数据集被均等分配到每个GPU上。每个GPU独立地对其分配到的数据进行前向传播（计算预测输出）和反向传播（计算梯度）。
+***1）在训练开始时，整个数据集被均等分配到每个GPU上。每个GPU独立地对其分配到的数据进行前向传播（计算预测输出）和反向传播（计算梯度）。***
 
-2）同步各个GPU上的梯度，以确保模型更新的一致性，该过程通过Ring-All-Reduce算法实现。
+***2）同步各个GPU上的梯度，以确保模型更新的一致性，该过程通过Ring-All-Reduce算法实现。***
 
-3）一旦所有的GPU上的梯度都同步完成，每个GPU就会使用这些聚合后的梯度来更新其维护的模型副本的参数。因为每个GPU都使用相同的更新梯度，所以所有的模型副本在任何时间点上都是相同的。
+***3）一旦所有的GPU上的梯度都同步完成，每个GPU就会使用这些聚合后的梯度来更新其维护的模型副本的参数。因为每个GPU都使用相同的更新梯度，所以所有的模型副本在任何时间点上都是相同的。***
 
 
 
@@ -3196,13 +3646,9 @@ DDP的训练过程可以总结为如下步骤：
 
 Ring-All-Reduce架构是一个环形架构，所有GPU的位置都是对等的。每个GPU上都会维持一个模型的副本，并且只需要和它相连接的两个GPU通信。
 
-对于第k个GPU而言，只需要接收来自于第k-1个GPU的数据，并将数据汇总后发送给第k+1个GPU。这个过程在环中持续进行，每个GPU轮流接收、聚合并发送梯度。
-
-经过 N 次的迭代循环后（N是GPU的数量），每个GPU将累积得到所有其他GPU的梯度数据的总和。此时，每个GPU上的梯度数据都是完全同步的。
+<font color='red'>对于第k个GPU而言，只需要接收来自于第k-1个GPU的数据，并将数据汇总后发送给第k+1个GPU。这个过程在环中持续进行，每个GPU轮流接收、聚合并发送梯度。经过 N 次的迭代循环后（N是GPU的数量），每个GPU将累积得到所有其他GPU的梯度数据的总和</font>此时，每个GPU上的梯度数据都是完全同步的。
 
 DDP的通信开销与GPU的数量无关，因而比DP更为高效。如果你的训练数据达到了十万这个量级，并且需要使用4卡及以上的设备来进行训练，DDP将会是你的最佳选择。
-
-
 
 
 
