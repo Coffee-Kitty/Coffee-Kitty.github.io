@@ -461,7 +461,7 @@ class PretrainDataset(Dataset):
 我们给输入一句话，然后attention里做的mask！！！
 
 ```python
-        mask = torch.full((1, 1, args.max_seq_len, args.max_seq_len), float("-inf"))
+        mask = torch.full((1, 1, args.max_seq_len, args.max_seq_len), float("-inf"))# 掩盖为-inf， softmax一下就归0了
         mask = torch.triu(mask, diagonal=1)
 ```
 
@@ -3259,7 +3259,7 @@ sft用的是匠数大模型sft数据集。
 
 
 
-DPO数据，来自活字模型，大约8万条dpo数据，人工标注的偏好数据。
+DPO数据，来自活字模型，大约**8万条**dpo数据，人工标注的偏好数据。
 
 
 

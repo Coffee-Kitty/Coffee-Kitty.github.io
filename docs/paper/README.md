@@ -24,7 +24,12 @@
 
 * [LLMBOOK](paper/LLMBOOK.md)
 * [minimind学习](paper/minimind学习.md)
+* [SentenceBert/Transformer](paper/SentenceBert.md)
+
+
 * [RAG](paper/RAG.md)
 
 
 
+实践LLM
+* [tiny-llm](paper/tiny-llm.ipynb)

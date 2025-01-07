@@ -7,3 +7,5 @@
 * [pythonic](code/pythonic.md)
 
 * [linux代理配置](code/linux代理配置.md)
+
+* [latex-typora](code/Typora.pdf)
