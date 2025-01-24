@@ -2,10 +2,10 @@
 
 * [vscode调试小技巧](code/vscode调试.md)
   
-* [python加载yml](code/python加载yml.md)
-
-* [pythonic](code/pythonic.md)
 
 * [linux代理配置](code/linux代理配置.md)
 
-* [latex-typora](code/Typora.pdf)
+* [typora(支持latex)](code/Typora.md)
+
+* [python](code/python.md)
+
