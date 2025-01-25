@@ -1,4 +1,4 @@
-
+# lchot100
 
 途中发现 [B站@灵茶山艾府](https://leetcode.cn/link/?target=https%3A%2F%2Fspace.bilibili.com%2F206214) 的题解一般比较优雅。
 
@@ -3989,9 +3989,64 @@ class Solution:
 
 ## **[75. 颜色分类](https://leetcode.cn/problems/sort-colors/)
 
+首先想到了类似快排，但是存在一个问题
+
+之前的快排代码是只能将区间二分， 即左侧小于flag，右侧大于等于flag
+
+```python
+class Solution:
+    def sortColors(self, nums: List[int]) -> None:
+        """
+        Do not return anything, modify nums in-place instead.
+        """
+
+        flag = 1
+        i,j = 0,len(nums)-1
+        while i<=j:
+            while i<=j and nums[i]<flag:
+                i+=1 
+            while i<=j and nums[j]>=flag:
+                j-=1
+            if i<=j:
+                nums[i], nums[j]= nums[j], nums[i]
+        
+```
+
+![image-20250125151027634](../picture.asset/image-20250125151027634.png)
+
+下面是一个正确做法，三指针
+
+cur指针指向正在处理的元素，然后规定[0,lef) (rig,len(nums)]分别为0，2区间
+
+```python
+class Solution:
+    def sortColors(self, nums: List[int]) -> None:
+        """
+        Do not return anything, modify nums in-place instead.
+        """
+
+        lef,rig = 0, len(nums)-1 # [0,lef)为0  (rig,len(nums)]为2
+        cur = 0 #[lef,cur)为1
+
+        while cur<=rig: #一直处理到 rig
+            if nums[cur]==0:
+                # 与left交换
+                nums[lef],nums[cur]=nums[cur],nums[lef]
+                lef+=1
+                # 由于left<=cur  即left是已经处理过的元素 cur++
+                cur+=1
+            elif nums[cur]==1:
+                cur+=1
+            elif nums[cur]==2:
+                #与右侧交换
+                nums[rig],nums[cur]=nums[cur],nums[rig]
+                rig-=1
+                #由于rig元素并未处理过所以不移动cur
+```
 
 
 
+## ?**[31. 下一个排列](https://leetcode.cn/problems/next-permutation/)
 
 
 
@@ -4000,6 +4055,8 @@ class Solution:
 
 
 ## [287. 寻找重复数](https://leetcode.cn/problems/find-the-duplicate-number/)
+
+本题目与 41. 缺失的第一个正数 的思维比较想像
 
 ```python
 class Solution:
@@ -4025,4 +4082,19 @@ class Solution:
 
 
 
-2025.1.24
+2025.1.25
+
+只剩下 下一个排列 以及 寻找两个正序数组的中位数 还是一头雾水
+
+当然，中间也有一些不是完全理解的，也不一定是最优解
+
+
+
+至此，第一遍速通算是完成。
+
+令人最印象深刻的是  递归子问题，以及加上@cache来解决重叠子问题的dp， 越来越喜欢dp了
+
+2025.1.25记
+
+------------------
+

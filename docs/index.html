@@ -6,26 +6,34 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
   <meta name="description" content="Description">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-
   <!-- 主题 -->
   <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
-  
+  <!-- gitalk css -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk/dist/gitalk.css">
+
+ 
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app">Please wait...</div>
+ 
+
   <script>
+
     window.$docsify = {
       name: 'coffeecat',
       repo: 'https://github.com/Coffee-Kitty/Coffee-Kitty.github.io',//配置仓库地址
       loadSidebar: true,//开启侧边栏
-      subMaxLevel:0,//侧边栏生成目录最大层数为2
+      subMaxLevel:0,//侧边栏生成目录最大层数为0
+      alias: {
+        '/.*/_sidebar.md': '/_sidebar.md'
+      },
       coverpage: true, //开启封面
-      loadNavbar: true,//顶部导航栏
+      loadNavbar: true,//顶部导航栏 即_navbar.md相关内容
       search: 'auto',//全文搜索
       toc: {//文章内导航
         scope: '.markdown-section',
         headings: 'h1, h2, h3, h4, h5, h6',
-        title: 'Table of Contents',
+        title: '导航',
       },
       copyCode: {//代码复制
           // buttonText : 'buttonText:String',
@@ -56,10 +64,37 @@
         inlineMath   : [['$', '$'], ['@', '@']],
         displayMath  : [['$$', '$$'], ['@@', '@@']],
       },
-      disqus: 'shortname',//disqus评论系统
+      // disqus: 'shortname',//disqus评论系统
+      count:{//字数统计
+        countable:true,
+        fontsize:'0.9em',
+        color:'rgb(90,90,90)',
+        language:'chinese'
+      },
 
     }
   </script>
+    <!-- gitalk评论系统插件 -->
+   <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/gitalk.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+   <script>
+     var gitalk = new Gitalk({
+       clientID: 'Ov23lieAXtKjTHP0gM33',
+       clientSecret: '2fb8444ff14aa71f6361b193774a0b0ca9349237',
+       repo: 'Coffee-Kitty.github.io',
+       owner: 'Coffee-Kitty',
+       admin: ['Coffee-Kitty'],
+       title: location.hash.match(/#(.*?)([?]|$)/)[1],
+       id: location.hash.match(/#(.*?)([?]|$)/)[1],
+     })
+     // 监听URL中hash的变化，如果发现换了一个MD文件，那么刷新页面，解决整个网站使用一个gitalk评论issues的问题。
+     window.onhashchange = function(event){
+         if(event.newURL.split('?')[0] !== event.oldURL .split('?')[0]) {
+           location.reload()
+         }
+     }
+ 
+   </script>
   <!-- Docsify v4 -->
   <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
   <!-- 下面为插件 -->
@@ -96,6 +131,10 @@
   <!-- or use this if you are not hosting the file yourself -->
   <script src="//unpkg.com/docsify-pdf-embed-plugin/src/docsify-pdf-embed.js"></script>
 
+  <!-- 链接下一篇文章插件 -->
+  <script src="//cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+  <!-- 字数统计插件 -->
+  <script src="//unpkg.com/docsify-count/dist/countable.js"></script>
 
   <!-- 评论系统Disqus 待完成 -->
   <!-- <script src="//unpkg.com/docsify/lib/plugins/disqus.min.js"></script> -->

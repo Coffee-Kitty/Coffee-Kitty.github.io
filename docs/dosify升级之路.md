@@ -4,3 +4,8 @@ https://blog.hszofficial.site/recommend/2020/11/18/%E4%BD%BF%E7%94%A8docsify%E5%
 
 
 https://mazhuang.org/2017/09/01/markdown-odd-skills/#%E5%9C%A8%E8%A1%A8%E6%A0%BC%E5%8D%95%E5%85%83%E6%A0%BC%E9%87%8C%E6%8D%A2%E8%A1%8C
+
+
+
+[gitalk评论系统的添加](https://blog.csdn.net/linZinan_/article/details/132552664)
+[gitalk评论系统的添加](https://blog.csdn.net/m0_60725291/article/details/120993395?spm=1001.2101.3001.6650.1&utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-1-120993395-blog-132552664.235%5Ev43%5Epc_blog_bottom_relevance_base5&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-1-120993395-blog-132552664.235%5Ev43%5Epc_blog_bottom_relevance_base5&utm_relevant_index=2)
