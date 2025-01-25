@@ -74,27 +74,27 @@
 
     }
   </script>
-    <!-- gitalk评论系统插件 -->
-   <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/gitalk.min.js"></script>
-   <script src="//cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
-   <script>
-     var gitalk = new Gitalk({
-       clientID: 'Ov23lieAXtKjTHP0gM33',
-       clientSecret: '2fb8444ff14aa71f6361b193774a0b0ca9349237',
-       repo: 'Coffee-Kitty.github.io',
-       owner: 'Coffee-Kitty',
-       admin: ['Coffee-Kitty'],
-       title: location.hash.match(/#(.*?)([?]|$)/)[1],
-       id: location.hash.match(/#(.*?)([?]|$)/)[1],
-     })
-     // 监听URL中hash的变化，如果发现换了一个MD文件，那么刷新页面，解决整个网站使用一个gitalk评论issues的问题。
-     window.onhashchange = function(event){
-         if(event.newURL.split('?')[0] !== event.oldURL .split('?')[0]) {
-           location.reload()
-         }
-     }
- 
-   </script>
+  <!-- gitalk评论系统插件 -->
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/gitalk.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+  <script>
+    var gitalk = new Gitalk({
+      clientID: 'Ov23lieAXtKjTHP0gM33',
+      clientSecret: '2fb8444ff14aa71f6361b193774a0b0ca9349237',
+      repo: 'Coffee-Kitty.github.io',
+      owner: 'Coffee-Kitty',
+      admin: ['Coffee-Kitty'],
+      title: location.hash.match(/#(.*?)([?]|$)/)[1],
+      id: location.hash.match(/#(.*?)([?]|$)/)[1],
+    })
+    // 监听URL中hash的变化，如果发现换了一个MD文件，那么刷新页面，解决整个网站使用一个gitalk评论issues的问题。
+    window.onhashchange = function(event){
+        if(event.newURL.split('?')[0] !== event.oldURL .split('?')[0]) {
+          location.reload()
+        }
+    }
+
+  </script>
   <!-- Docsify v4 -->
   <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
   <!-- 下面为插件 -->
