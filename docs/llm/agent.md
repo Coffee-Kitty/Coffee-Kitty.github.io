@@ -170,3 +170,132 @@ ReACT让大模型**先进行思考**，思考完**再进行行动**，然后**�
 
 24年7月份，一个被命名为MetaGPT的项目引起了广泛关注，这个项目中**定义了产品经理、架构师、项目管理员、工程师和质量保证等角色**，各角色之间通过相互协作，基本可以胜任完成**500行左右代码**的小工程了。
 
+
+
+## code实践
+
+### AutoGPT
+
+[autogpt github地址](https://github.com/Significant-Gravitas/AutoGPT)
+[autogpt官方文档地址](https://docs.agpt.co/)
+
+
+
+#### 依照官方docs启动记录
+
+
+首先基本环境配置
+创建autogpt文件夹， 创建env.sh, back.sh, fron.sh用于下面环境配置
+
+```bash
+## 环境配置
+
+# 1.安装node.js和npm
+
+# https://nodejs.org/en/download/
+
+# Download and install nvm:
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+
+# in lieu of restarting the shell
+\. "$HOME/.nvm/nvm.sh"
+
+# Download and install Node.js:
+nvm install 22
+
+# Verify the Node.js version:
+node -v # Should print "v22.14.0".
+nvm current # Should print "v22.14.0".
+
+# Verify npm version:
+npm -v # Should print "10.9.2".
+
+
+# 2.安装docker和docker compose
+
+# 服务器上已经存在
+
+# 3.安装git
+# 服务器上已经存在
+
+
+docker -v
+# ! docker compose -v 错了
+docker compose version
+```
+![alt text](assets/agent/image-22.png)
+
+
+
+
+然后克隆仓库，运行后端
+```bash
+## clone repo
+if [ ! -d 'AutoGPT']; then
+    echo "AutoGPT 目录不存在，开始克隆仓库..."
+    git clone -b stable --single-branch 
+    git clone https://github.com/Significant-Gravitas/AutoGPT.git
+else
+    echo "AutoGPT 目录已存在，跳过克隆步骤。"
+fi
+
+### backend
+cd AutoGPT
+
+# clone the submodules
+git submodule update --init --recursive --progress
+cd autogpt_platform
+# 
+cp supabase/docker/.env.example .env
+# 此命令将以分离模式启动 docker-compose.combined.yml 文件中定义的所有必要后端服务。
+# -d 代表 detached，即分离模式。使用该选项后，Docker Compose 会在后台运行容器，不会占用当前终端的输入输出流
+# --build 指令会在启动容器前先检查相关服务的镜像是否存在。若镜像不存在，它会根据 Dockerfile 构建镜像；若存在，则会对比 Dockerfile 和现有镜像，若有改动则重新构建。
+# 该文件定义了所有必要的后端服务。使用 docker compose up 命令时指定该文件，能确保一次性启动所有相关服务，且这些服务之间的依赖关系、网络配置等都按文件中的设定来。以一个全栈应用为例，后端可能有数据库服务、消息队列服务以及业务逻辑服务，这些服务之间有特定的网络访问规则和启动顺序要求。
+sudo docker compose up -d --build
+```
+![alt text](assets/agent/image-23.png)
+
+如上图，成功启动起来后，  
+用sudo docker ps一看，docker后台起了一堆容器  
+
+
+再运行前端
+```bash
+# pwd 为autogpt_platform
+cd AutoGPT/autogpt_platform/frontend
+cp .env.example .env
+npm install 
+npm run dev
+```
+前端启动也稍微有点慢，  
+其中一些warn报告npm的一些包过时了，不过无伤大雅  
+最终启动后的图如下：
+![alt text](assets/agent/image-25.png)
+
+
+
+> Frontend UI Server: 3000
+>  Backend Websocket Server: 8001
+>  Execution API Rest Server: 8006
+
+![alt text](assets/agent/image-26.png)
+![alt text](assets/agent/image-27.png)
+![alt text](assets/agent/image-24.png)
+
+至此，成功启动autogpt
+
+
+#### 下载、创建agent
+
+
+[market地址](https://platform.agpt.co/marketplace)
+地址找半天没找到还。。
+
+# todo Bottleneck
+> 这里一直sign up 和 login 不上去
+
+> 需要将源代码里修改
+
+> 但是好像，只需要借鉴基本源代码思路就可以
+
+
