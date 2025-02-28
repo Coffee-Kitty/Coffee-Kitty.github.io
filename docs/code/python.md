@@ -2,7 +2,37 @@
 
 # python
 
+## mutable可变与不可变对象,hashable与不可hashable对象
+> 请注意，可变 具有很微妙的含义
+![alt text](assets/python/image.png)
 
+不可变对象的修改，会创建新的对象
+int类型为不可变对象
+![alt text](assets/python/image-1.png)
+str类型同样为不可变对象， 可以对其索引但不可以修改
+![alt text](assets/python/image-2.png)
+
+
+可变对象的修改 不会创建 新的对象
+list的可变性，
+![alt text](assets/python/image-4.png)
+set是可变对象，set存储的元素是不可变对象
+![alt text](assets/python/image-3.png)
+
+
+可变对象不可hash
+
+比如list
+
+a=[1]
+a+=[2]后
+两者id相同， 但是a的值从[1] 变成了[1,2]
+
+至于list为啥不可哈希，
+由于hash是基于容器所有值进行统计计算的，
+如果我们把 a=[1]作为key，进行了哈希计算放置在dict中，此时我们可以通过dict[a]来访问，此时会调用hash(a)来计算其在内部容器具体对应位置
+
+而由于a是可变的，如把 a+=[2],那么当再次访问dict[a]时，调用hash(a)就发生了变化，此时该哈希值在内部容器中对应位置就跟上次不对应了！！！
 
 ## 内置函数与方法
 

@@ -10,6 +10,8 @@ sudo docker pull ufoym/deepo:all-jupyter-py36-cu100
 
 
 sudo nvidia-docker run -it -p 7777:8888 --ipc=host -v ~/xsc_workspace:/xsc_workspace --gpus all --name xsc_notebook ufoym/deepo:all-jupyter-py36-cu100
+
+sudo docker rename xsc_notebook  newname # 改名字
 ```
 -it：为直接进入交互式 ；
 -p 7777:8888：是把主机的7777端口映射到容器的8888端口；
