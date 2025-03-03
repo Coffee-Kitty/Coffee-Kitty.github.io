@@ -1,6 +1,6 @@
-
-
-## GPU显存估计
+# vllm部署deepseek
+## 环境准备
+### GPU显存估计
 
 
 相较于预训练减少了模型梯度，优化器状态，同时激活值开销也降低
@@ -15,7 +15,7 @@ deepseek
 
 > 这里使用vllm， vllm将分页管理显存，还需vllm框架的开销
 
-## 下载DeepSeek-R1-Distill-Llama-70B
+### 下载DeepSeek-R1-Distill-Llama-70B
 使用git lfs拉取
 ```bash
 
@@ -38,7 +38,7 @@ git lfs pull #全部文件
 ```
 ![alt text](assets/vllm部署deepseek/image.png)
 
-## 下载DeepSeek-R1-Distill-Qwen-1.5B
+### 下载DeepSeek-R1-Distill-Qwen-1.5B
 上面下载太慢，先下个1.5B的试下    
 ```bash
 # hf网址
@@ -74,14 +74,14 @@ vllm serve ./DeepSeek-R1-Distill-Qwen-1.5B  \
 
 ```
 
-## 调用
+### 调用
 下面调用，
 使用curl也行，
 使用openai也行，因为与openai协议兼容
 
     --api-key "token123456" \ 咋curl没学会,先不加，使用openai函数时再加
 
-### curl
+#### curl
 ```bash 
 # Call the server using curl:
 curl -X POST "http://localhost:7888/v1/chat/completions" \
@@ -106,7 +106,7 @@ curl -X POST "http://localhost:7888/v1/chat/completions" \
 ![alt text](assets/vllm部署deepseek/image-3.png)
 
 
-### openai
+#### openai
 ```python
 from openai import OpenAI
 client = OpenAI(
@@ -142,7 +142,7 @@ print(completion.choices[0].message)
 
 
 
-### langchain
+#### langchain
 ```py
 from langchain_openai import ChatOpenAI
 
@@ -186,4 +186,113 @@ llm.invoke(messages)
 ![alt text](assets/vllm部署deepseek/image-7.png)
 
 
+
+## vllm部署DeepSeek-R1-Distill-Llama-70B
+
+```bash
+vllm serve DeepSeek-R1-Distill-Llama-70B  \
+            --host 0.0.0.0 --port 8888 \
+                    --dtype float16 \
+                        --pipeline-parallel-size 2 \
+                            --tensor-parallel-size 2 \
+                            --api-key 'token123456'
+```
+报错，显存不够
+![alt text](assets/vllm部署deepseek/image-8.png)
+下图为llama3的70b的架构，llama3.3的不知道
+![alt text](assets/vllm部署deepseek/image-9.png)
+> ok
+> 来算一下显存，首先总共用4张l40s，即46G*4 = 184G
+> 1. 模型参数， 梯度优化器不考虑，则参数70B所占用显存为：70.6B param bfloat16
+> 则约为70.6*2 = 141.2G
+> 2. 推理数据所用， 正常为4\*bs\*seq\*hid，训练优化为2\*bs\*seq\*hid,推理则为\*bs\*seq\*hid
+> 模型hid约为 8192 / 1024 =8k
+> 则有  bs\*seq <=  42G / 8k = 5.2M
+> 而llama3 支持的context为没找到，  这里直接设置 bs为128，
+> 然后如果直接设置seq为 8\*5\*1024 则直接把显存占满了， 所有所以设置为 20k吧
+> 那么推理数据所用参数则约为 128\*20k\*8k = 20G
+> bs这里可以用线程池优化啥的
+> 3. 框架占用
+> pytorch框架1GB, 其他不知道
+>
+> 4. 也就是剩了大概 20G可以让vllm做kv cache缓存
+
+```bash
+vllm serve DeepSeek-R1-Distill-Llama-70B  \
+            --host 0.0.0.0 --port 8888 \
+            --dtype bfloat16 \
+            --pipeline-parallel-size 2 \
+            --tensor-parallel-size 2 \
+            --api-key 'token123456' \
+            --max-model-len 73712
+
+```
+> 注意，到目前为止， 没学好咋用vllm更改bs 和 seq
+> 照着上面的报错信息 更改max-model-len为73712，然后成功启动
+如下图
+![alt text](assets/vllm部署deepseek/image-10.png)
+
+
+```python
+
+from langchain_deepseek import ChatDeepSeek 
+llm = ChatDeepSeek(
+    api_key='token123456', 
+    api_base='http://127.0.0.1:8888/v1',
+    model="DeepSeek-R1-Distill-Llama-70B", 
+    temperature=0, 
+    max_tokens=None,
+    timeout=None, 
+    max_retries=2,
+    # other params... 
+    )
+
+messages = [ 
+    ("system", "You are a helpful translator. Translate the user sentence to French."),
+    ("human", "I love programming."), 
+] 
+llm.invoke(messages)
+```
+成功调用，但延时略高
+![alt text](assets/vllm部署deepseek/image-11.png)
+
+
+
+查看显存
+> watch [选项] 命令
+> 常用选项
+> -n <秒数>：指定刷新间隔时间（默认为 2 秒）。
+> -d 或 --differences：高亮显示输出的变化部分。
+> -t 或 --no-title：不显示标题信息（即不显示命令和时间戳）。
+> -c 或 --color：支持彩色输出（如果命令支持彩色）。
+
+```bash
+watch -n 1 -d -c nvidia-smi
+```
+![alt text](assets/vllm部署deepseek/image-13.png)
+再如下图是处理时的显存情况
+![alt text](assets/vllm部署deepseek/image-12.png)
+
+
+
+### bottleneck vllm参数配置
+如上图可见，显存利用率较低,修改显存利用为1试试
+![alt text](assets/vllm部署deepseek/image-14.png)
+```bash
+vllm serve DeepSeek-R1-Distill-Llama-70B  \
+            --host 0.0.0.0 --port 8888 \
+            --dtype bfloat16 \
+            --pipeline-parallel-size 2 \
+            --tensor-parallel-size 2 \
+            --api-key 'token123456' \
+            --gpu-memory-utilization 1
+
+```
+同样成功启动如下图
+![alt text](assets/vllm部署deepseek/image-15.png)
+处理token时，显存显示如下
+![alt text](assets/vllm部署deepseek/image-16.png)
+
+
+> 暂且做到这里，然后开始做agent
 
