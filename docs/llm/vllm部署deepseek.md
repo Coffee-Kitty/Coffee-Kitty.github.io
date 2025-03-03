@@ -233,6 +233,8 @@ vllm serve DeepSeek-R1-Distill-Llama-70B  \
 ![alt text](assets/vllm部署deepseek/image-10.png)
 
 
+
+
 ```python
 
 from langchain_deepseek import ChatDeepSeek 
@@ -276,6 +278,7 @@ watch -n 1 -d -c nvidia-smi
 
 
 ### bottleneck vllm参数配置
+#### 显存利用率设置
 如上图可见，显存利用率较低,修改显存利用为1试试
 ![alt text](assets/vllm部署deepseek/image-14.png)
 ```bash
@@ -296,3 +299,58 @@ vllm serve DeepSeek-R1-Distill-Llama-70B  \
 
 > 暂且做到这里，然后开始做agent
 
+*  当刚开始启动时，发现显存占用为 35G * 4 =140G，也就是说，只需要启动模型参数，然后框架自身， 最后根据cpu利用率其自动调整分页方式，管理推理时显存
+ ![alt text](assets/vllm部署deepseek/image-18.png)
+
+#### 工具调用
+```python
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(
+    model='DeepSeek-R1-Distill-Llama-70B', 
+    openai_api_key='token123456', 
+    openai_api_base='http://127.0.0.1:8888/v1',
+    max_tokens=128,
+     
+)
+
+
+from langchain_core.tools import tool
+
+@tool
+def add(a: int, b: int) -> int:
+    """Adds a and b."""
+    return a + b
+
+
+@tool
+def multiply(a: int, b: int) -> int:
+    """Multiplies a and b."""
+    return a * b
+
+
+tools = [add, multiply]
+
+
+
+llm_with_tools = llm.bind_tools(tools=[add, multiply],)
+query = "What is 3 * 12? Also, what is 11 + 49?"
+llm_with_tools.invoke(query).invalid_tool_calls 
+```
+
+BadRequestError: Error code: 400 - {'object': 'error', 'message': '"auto" tool choice requires --enable-auto-tool-choice and --tool-call-parser to be set', 'type': 'BadRequestError', 'param': None, 'code': 400
+
+
+最后在vllm中找到答案
+```bash
+vllm serve DeepSeek-R1-Distill-Llama-70B  \
+            --host 0.0.0.0 --port 8888 \
+            --dtype bfloat16 \
+            --pipeline-parallel-size 2 \
+            --tensor-parallel-size 2 \
+            --api-key 'token123456' \
+            --gpu-memory-utilization 1 
+            --enable-auto-tool-choice \
+            --tool-call-parser llama3_json
+           
+```
