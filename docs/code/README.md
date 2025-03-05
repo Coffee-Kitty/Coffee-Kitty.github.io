@@ -1,6 +1,6 @@
 
 
-* [vscode调试小技巧](code/vscode调试.md)
+* [vscode配置使用](code/vscode技巧.md)
   
 
 * [linux代理配置](code/linux代理配置.md)

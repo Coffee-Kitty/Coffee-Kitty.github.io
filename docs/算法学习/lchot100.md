@@ -6,6 +6,10 @@
 
 ## [1. 两数之和](https://leetcode.cn/problems/two-sum/)
 
+
+
+
+
 ```python
 class Solution:
     def twoSum(self, nums: List[int], target: int) -> List[int]:
@@ -146,7 +150,7 @@ class Solution:
 
 
 
-## ** [15. 三数之和](https://leetcode.cn/problems/3sum/) 
+## ** # [15. 三数之和](https://leetcode.cn/problems/3sum/) 
 
 
 
@@ -240,7 +244,7 @@ class Solution:
     def lengthOfLongestSubstring(self, s: str) -> int:
         """
             子串是连续的， 非负的
-            可以尝试使用滑动窗口
+            可以尝试使用不定长滑动窗口
         """
 
         l,r = -1,-1
@@ -266,7 +270,7 @@ class Solution:
 
 
 
-## **[438. 找到字符串中所有字母异位词](https://leetcode.cn/problems/find-all-anagrams-in-a-string/)
+## ** [438. 找到字符串中所有字母异位词](https://leetcode.cn/problems/find-all-anagrams-in-a-string/)
 
 ```python
 class Solution:

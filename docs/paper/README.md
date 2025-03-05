@@ -25,7 +25,7 @@
 * [LLMBOOK](paper/LLMBOOK.md)
 * [minimind学习](paper/minimind学习.md)
 * [SentenceBert/Transformer](paper/Sentence-Bert.md)
-
+* [PentestGPT](paper/PentestGPT.md)
 
 * [RAG](paper/RAG.md)
 
