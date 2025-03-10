@@ -1,6 +1,12 @@
+<!--
+ * @Author: coffeecat
+ * @Date: 2025-02-26 16:14:36
+ * @LastEditors: Do not edit
+ * @LastEditTime: 2025-03-10 16:16:21
+-->
 
 
-## 大模型agent规划
+## agent计划书  v1.0
 
 ### 预期
 给定一个网址url，
@@ -55,6 +61,47 @@ agent将
 
 
 
+
+
+
+## agent计划书 v2.0
+
+接触了pentestAssistant 和 openmanus两个项目后 新的大体规划与疑问
+
+
+pentestAssistant workflow
+
+
+openmanus workflow
+
+
+
+### 疑问
+1. 
+funtion calling 对比 基本的对话形式 ， 优点在哪里？
+    ds，qwq暂不支持 function calling
+
+为了对接这些模型，则需要以 chat 模式 进行function calling的转写工作
+
+
+2. 模型本身对于工具的知识是否足够
+    使用rag的策略一定是生成更好吗？
+    如果做安全工具agent的话，是否考虑 专门的安全大模型
+
+3. 工具
+   bash shell之强大
+   似乎基本工具用shell交互就行了
+
+    也就是说目前比较好的需要集成的工具有
+    shell，python code，
+    了解到一个 browse-use的，震惊。
+
+
+
+### 新的大致workflow
+
+
+在 openmanus function calling中加入 rag？
 
 
 

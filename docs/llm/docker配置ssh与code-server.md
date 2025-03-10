@@ -2,9 +2,10 @@
  * @Author: coffeecat
  * @Date: 2025-03-07 10:20:15
  * @LastEditors: Do not edit
- * @LastEditTime: 2025-03-07 14:41:25
+ * @LastEditTime: 2025-03-10 09:41:07
 -->
 
+# 服务器ssh环境
 
 ## ssh连接docker
 sudo docker run --privileged -it --name coffee_ssh  -v ./xsc_workspace:/workspace -p 2222:22 coffeecat:sshd /bin/bash
@@ -79,3 +80,14 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'bind')
 
 终于正常了
 ![alt text](assets/docker学习/image-8.png)
+
+
+
+## 改密码
+[官网](https://coder.com/docs/code-server/FAQ#how-do-i-change-the-password)
+![alt text](assets/docker配置ssh与code-server/image.png)
+
+./code-server --help
+
+修改config.yaml 然后使用下述命令即可
+./code-server --bind-addr 0.0.0.0:7888 --auth password

@@ -2,10 +2,10 @@
  * @Author: coffeecat
  * @Date: 2024-12-03 13:09:07
  * @LastEditors: Do not edit
- * @LastEditTime: 2025-03-05 21:22:57
+ * @LastEditTime: 2025-03-10 16:47:35
 -->
-
-## vscode配置
+# vscode skill
+## vscode插件配置
 
 ### jetbrains快捷键拓展
 ![alt text](QQ_1741180290375.png)
@@ -62,3 +62,16 @@ cd 到指定路径作为执行的根路径
 
 2. "justMyCode": false
 调试过程中要能够 step into 到源代码里去
+
+```json
+
+{
+    "name": "Python Debugger: Current File",
+    "type": "debugpy",
+    "request": "launch",
+    "program": "${file}",
+    "console": "integratedTerminal",
+    "cwd": "/workspace/xsc_workspace/OpenManus", // cd 到指定路径作为执行的根路径
+    "justMyCode": false, // 调试过程中要能够 step into 到源代码里去
+}
+```
