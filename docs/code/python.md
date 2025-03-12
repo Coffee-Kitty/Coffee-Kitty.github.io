@@ -575,8 +575,135 @@ class Solution:
         return heapq.heappop(heap)
 ```
 
+## asyncio 协程
+
+asyncio仍然是单进程单线程任务，并不能提升运算速度，
+只是更适合io密集型等待任务，
+在io密集性任务时，如网络通讯，我们可以挂起正在传输网络包的操作，进而执行一些其他操作
+
+### 简单理解
+asyncio的重点是，event_loop,
+对于所有的task而言，event_loop决定哪一个task去运行，
+当task运行时，event_loop无法剥夺其控制权，
+只能等到其执行完毕，或者yield出控制权。
+
+**假设一个情景，event_loop目前有一个task即main需要执行，**
+**分别是main函数（内部首先将a,b函数注册为task，此时event_loop中就有总共三个task，但是控制权此时仍在main，然后await a, print(main),然后await b）**
+**a函数 (asyncio.sleep 1秒钟，然后print a)**
+**b函数 (内部await asyncio.sleep 2秒种，然后print b)**
+
+***event_loop从main函数进入，控制权由event_loop转移到main， 执行时发现main需要 await等到a执行完毕，控制权从main返回event_loop， 此时event_loop有两个task，执行a时发现需要等1秒，就转而执行了b，发现需要等2秒，控制权就再返回给event_loop,1秒钟过后a状态变为可执行task，print(a),然后a执行完毕，控制权重回event_loop并且main也变成了可执行task，执行main，打印main，然后再经过类似变化，打印b然后终结***
+
+```python
+
+import asyncio
 
 
+async def a():
+    await asyncio.sleep(1)
+    print("a")
+
+async def b():
+    await asyncio.sleep(2)
+    print("b")
+async def main():
+    a_task = asyncio.create_task(
+        a()
+    )
+    b_task = asyncio.create_task(
+        b()
+    )
+
+    await a_task
+    print("main") 
+    await b_task
+asyncio.run(main())
+
+"""
+a
+main
+b
+"""
+
+
+```
+### coroutine 
+coroutine(协程)一般指代两个事务，coroutine funciton与 coroutine object
+*coroutine function在被调用时不会执行，*
+*coroutine function 返回coroutine object*
+```python
+# coroutine funciton
+async def main():
+    print("123") 
+
+coro = main() # coroutine obejct
+print(type(main))
+print(type(coro))
+"""
+<class 'function'>
+<class 'coroutine'>
+sys:1: RuntimeWarning: coroutine 'main' was never awaited
+"""
+# 没有执行print("123")
+```
+
+只有在async模式下，并且把 coroutine转换为 task，
+才能执行
+
+### async模式
+```python
+... 
+asyncio.run( coro )
+```
+
+asyncio.run接受coroutine参数，并把它变成event_loop中的第一个task，
+然后以async模式执行。
+
+### task
+如何把coroutin变成task，从而使其可以在async模式下执行
+
+#### await
+```python
+...
+res = await coro
+```
+await函数
+1. 将接收的coroutine 变成 task注册到event_loop
+2. 告诉event_loop目前的task，需要等到这个新的task执行完毕后，才能继续执行
+3. yield出去控制权，event_loop调度其他的task去执行
+4. 当新的task执行完毕 并且 event_loop再次调度该task时，将返回值保存给res然后继续执行
+
+##### await存在的不足
+>![1741765104630](image/python/1741765104630.png)
+> 如上图，由于等待机制
+> 仍然执行3秒钟
+
+#### asyncio.create_task函数
+```python
+task = asyncio.create_task(  coro )
+
+res = await task
+
+```
+asyncio.create_task函数
+* 将接收的coroutine 变成 task注册到event_loop
+![1741765215547](image/python/1741765215547.png)
+如上图，此时就只执行了2秒
+
+
+#### asyncio.gather函数
+```python
+# func(1,2) == func(*[1,2])
+future = asyncio.gather(*[coro..., task..., future... ])
+res = await future
+```
+asyncio.gather函数
+1. 返回一个future的list， await future得到结果
+2. 接收coro，task，future作为参数，将这些合理注册到event_loop
+3. 最终res返回值是一个list，并且是按参数传递顺序的结果
+
+用法如下图所示，注意是返回结果 是 按顺序的。
+![1741765625470](image/python/1741765625470.png)
 
 
 ## yaml
@@ -938,7 +1065,12 @@ if __name__ == '__main__':
 
 
 
+
+
 ## json vs yaml vs toml
+
+
+
 
 
 ## end
