@@ -2,7 +2,7 @@
  * @Author: coffeecat
  * @Date: 2025-03-07 10:20:15
  * @LastEditors: Do not edit
- * @LastEditTime: 2025-03-12 16:48:09
+ * @LastEditTime: 2025-03-22 16:07:09
 -->
 
 # 服务器ssh环境
@@ -33,7 +33,9 @@ https://blog.csdn.net/qq_45576664/article/details/140549180
 
 sudo docker pull codercom/code-server
 sudo docker run -d --name code-server -p 9000:8080 -e PASSWORD=123456 codercom/code-server:latest
-![alt text](assets/docker学习/image-2.png)
+
+
+![alt text](assets/docker学习/QQ_1742630817472.png)
 成功，但是是空白页面。。
 
 下一步挂载目录
@@ -48,7 +50,7 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'bind')
     at uuid.ts:13:61
 
 
-2. 根据github官网配置
+1. 根据github官网配置
 
 https://github.com/coder/code-server
 curl -fsSL https://code-server.dev/install.sh | sh -s -- --dry-run

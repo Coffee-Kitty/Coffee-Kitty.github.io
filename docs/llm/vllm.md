@@ -1,8 +1,9 @@
-# vllm部署deepseek
+#vllm
+## vllm部署deepseek
 
-## 环境准备
+### 环境准备
 
-### GPU显存估计
+#### GPU显存估计
 
 相较于预训练减少了模型梯度，优化器状态，同时激活值开销也降低
 deepseek
@@ -16,7 +17,7 @@ deepseek
 
 > 这里使用vllm， vllm将分页管理显存，还需vllm框架的开销
 
-### 下载DeepSeek-R1-Distill-Llama-70B
+#### 下载DeepSeek-R1-Distill-Llama-70B
 
 使用git lfs拉取
 
@@ -42,7 +43,7 @@ git lfs pull #全部文件
 
 ![alt text](assets/vllm部署deepseek/image.png)
 
-### 下载DeepSeek-R1-Distill-Qwen-1.5B
+#### 下载DeepSeek-R1-Distill-Qwen-1.5B
 
 上面下载太慢，先下个1.5B的试下
 
@@ -65,7 +66,7 @@ git lfs pull #全部文件
 
 ```
 
-## vllm部署DeepSeek-R1-Distill-Qwen-1.5B
+### vllm部署DeepSeek-R1-Distill-Qwen-1.5B
 
 先用4卡， 2TP2PP
 
@@ -81,7 +82,7 @@ vllm serve ./DeepSeek-R1-Distill-Qwen-1.5B  \
 
 ```
 
-### 调用
+#### 调用
 
 下面调用，
 使用curl也行，
@@ -89,7 +90,7 @@ vllm serve ./DeepSeek-R1-Distill-Qwen-1.5B  \
 
     --api-key "token123456" \ 咋curl没学会,先不加，使用openai函数时再加
 
-#### curl
+##### curl
 
 ```bash
 # Call the server using curl:
@@ -115,7 +116,7 @@ curl -X POST "http://localhost:7888/v1/chat/completions" \
 下面是单卡启动的显存图示
 ![alt text](assets/vllm部署deepseek/image-3.png)
 
-#### openai
+##### openai
 
 ```python
 from openai import OpenAI
@@ -149,7 +150,7 @@ print(completion.choices[0].message)
 
 路径很奇怪，但确实成功启动了，这里的模型选择应该就是对服务器说选择那个模型，不涉及模型的参数文件的具体路径
 
-#### langchain
+##### langchain
 
 ```py
 from langchain_openai import ChatOpenAI
@@ -194,7 +195,7 @@ llm.invoke(messages)
 也成功调用
 ![alt text](assets/vllm部署deepseek/image-7.png)
 
-## vllm部署DeepSeek-R1-Distill-Llama-70B
+### vllm部署DeepSeek-R1-Distill-Llama-70B
 
 ```bash
 vllm serve DeepSeek-R1-Distill-Llama-70B  \
@@ -283,9 +284,9 @@ watch -n 1 -d -c nvidia-smi
 再如下图是处理时的显存情况
 ![alt text](assets/vllm部署deepseek/image-12.png)
 
-### bottleneck vllm参数配置
+#### bottleneck vllm参数配置
 
-#### 显存利用率设置
+##### 显存利用率设置
 
 如上图可见，显存利用率较低,修改显存利用为1试试
 ![alt text](assets/vllm部署deepseek/image-14.png)
