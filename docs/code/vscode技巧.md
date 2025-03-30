@@ -2,7 +2,7 @@
  * @Author: coffeecat
  * @Date: 2024-12-03 13:09:07
  * @LastEditors: Do not edit
- * @LastEditTime: 2025-03-10 16:47:35
+ * @LastEditTime: 2025-03-22 21:18:49
 -->
 # vscode skill
 ## vscode插件配置
@@ -63,6 +63,47 @@ def a():
 3. Editor: Word Wrap 搜索这个
 4. 设为on将在视口宽度换行，设为off则永不自动换行
 
+### 设置粘贴图片自动适配路径
+
+https://www.cnblogs.com/xbotter/p/17528063.html
+
+1. 打开设置界面,在搜索框中输入markdown.copy, 找到Markdown> Copy Files:Destination
+
+2. 新增配置项 key 为 **/*.md , value 为 你的目标路径。
+
+比如我想将图片放在 assets 目录下 markdown文件同名的目录下，那么我就可以设置为 assets/${documentBaseName}/${fileName}， 
+
+其中 ${documentBaseName} 代表markdown文件的文件名，${fileName} 代表图片的文件名。
+
+<!-- 
+### 通过keybinding.json修改快捷键
+
+1. 开命令面板：按下 Ctrl+Shift+P （Windows/Linux）或 Command+Shift+P （Mac）打开命令面板。
+
+2. 搜索并打开首选项: 打开键盘快捷方式：)
+   在命令面板中输入 >首选项: 打开键盘快捷方式 并选择相应的选项，这会打开 keybindings.json 文件，在这里配置快捷键。
+![alt text](assets/vscode技巧/QQ_1742648824099.png)
+
+3. 编写自定义命令脚本：
+打开 keybindings.json 文件后，在文件中添加以下内容（如果文件为空，直接添加；如果已有内容，添加在合适的位置，通常在数组中）：
+```json
+{
+    "command": "extension.wrapWithAsterisks",
+    "args": {
+        "text": "**",
+        "action": "surround"
+    },
+    "when": "editorTextFocus",
+    "key": "ctrl+r"
+}
+```
+第一个 keybindings 项将 Ctrl+C 绑定到名为 extension.wrapWithAsterisks 的命令，并且限定在编辑器有文本焦点时生效。第二个 keybindings 项定义了 extension.wrapWithAsterisks 命令的具体行为，即使用 ** 包围选中的文本。
+
+
+4. 保存 keybindings.json 文件：保存文件后，配置就生效了。此时在 VS Code 编辑器中选中一段文本，按下 Ctrl+C ，选中的文本就会被 ** 包围。 -->
+
+
+
 
 ## vscode调试小技巧
 
@@ -84,3 +125,9 @@ cd 到指定路径作为执行的根路径
     "justMyCode": false, // 调试过程中要能够 step into 到源代码里去
 }
 ```
+
+
+
+
+
+
