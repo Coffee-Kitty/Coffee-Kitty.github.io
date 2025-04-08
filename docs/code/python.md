@@ -1070,7 +1070,55 @@ if __name__ == '__main__':
 ## json vs yaml vs toml
 
 
+## path导入问题
+在当前目录OpenManus下，准备两个文件test_path.py和test_path/test_path.py
+两个文件内容都是
+```python
+import sys
+print(__name__)
+print(sys.path)
+```
+然后下面是运行及结果
+(OpenManus) # python test_path.py
+__main__
+\['/workspace/xsc_workspace/OpenManus', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python312.zip', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python3.12', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python3.12/lib-dynload', '/workspace/xsc_workspace/OpenManus/.venv/lib/python3.12/site-packages'\]
 
+(OpenManus) #python test_path/test_path.py
+__main__
+\['/workspace/xsc_workspace/OpenManus/test_path', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python312.zip', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python3.12', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python3.12/lib-dynload', '/workspace/xsc_workspace/OpenManus/.venv/lib/python3.12/site-packages'\]
+(OpenManus) # python -m test_path.test_path
+__main__
+\['/workspace/xsc_workspace/OpenManus', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python312.zip', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python3.12', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python3.12/lib-dynload', '/workspace/xsc_workspace/OpenManus/.venv/lib/python3.12/site-packages']
+可见，sys.path依次打印了模块搜索路径，包括当前执行目录，标准库目录，最后是虚拟环境uv目录（uv是新的虚拟环境管理，就自己使用而言，亦可以理解为conda）
+从sys.path打印的目录第一个元素，我们可以看到运行 python -m test_path.test_path时，搜索路径还是OpenManus，
+而运行python test_path/test_path.py时，搜索目录却变成了/workspace/xsc_workspace/OpenManus/test_path，
+后者的这个情况，将导致一些包导入的问题。
+
+因此，之后的编码中需要妥善安排目录结构及测试，
+比如如下的目录结构
+.
+|
+|
+|--->app
+|    |
+|    |--->module1
+|    |        |
+|             |-> \_\_init\_\_.py
+|             |
+|             |-> test.py
+|
+|
+|---> config/
+|---> logs/
+|---> datas/
+|
+|
+|---> main.py
+
+把module都安排在app目录下，并且所有的导包统一使用from app.
+所有的执行都与main.py app同目录，即.目录
+此时，如果要测试app/module1/test.py
+也放在 .目录下， 运行python -m app.module1.test来运行 test.py中的 if \_\_name\_\_ == "\_\_main\_\_":
 
 
 ## end
