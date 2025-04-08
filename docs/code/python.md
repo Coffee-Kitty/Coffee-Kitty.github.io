@@ -1097,24 +1097,15 @@ __main__
   
 因此，之后的编码中需要妥善安排目录结构及测试，  
 比如如下的目录结构  
-.  
-|  
-|  
-|--->app   
-|    |  
-|    |--->module1     
-|    |        |  
-|             |-> \_\_init\_\_.py  
-|             |   
-|             |-> test.py   
-|    
-|
-|---> config/   
-|---> logs/  
-|---> datas/  
-|  
-|   
-|---> main.py  
+- .
+    - app
+      - module1
+        - __init__.py
+        - test.py
+    - config/
+    - logs/
+    - datas/
+    - main.py
   
 把module都安排在app目录下，并且所有的导包统一使用from app.  
 所有的执行都与main.py app同目录，即.目录   
