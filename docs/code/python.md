@@ -310,6 +310,9 @@ del a
 
 
 ## 装饰器
+> 装饰器即高级函数， 接收一个函数名，返回一个新的函数名
+> 从下面的调用方式一即可见
+
 
 普通装饰器
 
@@ -326,28 +329,23 @@ def decorator(func):
 
     return wrapper
 
-```
-
+"""
 共有两种调用方法：
 
 1.
 
-```python
 def compute():
     print("1+2==:",3)
 decorator_compute = decorator(compute)
 
 decorator_compute()
-"""
-compute execute start
-1+2==: 3
-compute execute end
-"""
-```
+
+# compute execute start
+# 1+2==: 3
+# compute execute end
 
 2.
 
-```python
 @decorator
 def compute():
     print("1+2==:",3)
@@ -357,8 +355,8 @@ compute()
 # 1+2==: 3
 # compute execute end
 # """
+"""
 ```
-
 
 
 ## collections
@@ -1070,6 +1068,179 @@ if __name__ == '__main__':
 ## json vs yaml vs toml
 
 
+## ast
+```python
+import ast
+
+
+# 模拟LLM生成代码
+def generate_code():
+    return """
+import math
+x = 10
+y = undefined_variable
+while True:
+    pass
+def func():
+    a = 1
+print(x)
+"""
+
+
+# 分析代码并生成反馈
+def analyze_code(code):
+    try:
+        tree = ast.parse(code)
+        feedback = []
+
+        # 查找未使用的变量
+        unused_variables = []
+        assigned_variables = set()
+        used_variables = set()
+
+        class VariableAnalyzer(ast.NodeVisitor):
+            def visit_Assign(self, node):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        assigned_variables.add(target.id)
+                self.generic_visit(node)
+
+            def visit_Name(self, node):
+                if isinstance(node.ctx, ast.Load):
+                    used_variables.add(node.id)
+                self.generic_visit(node)
+
+        var_analyzer = VariableAnalyzer()
+        var_analyzer.visit(tree)
+
+        unused_variables = assigned_variables - used_variables
+        if unused_variables:
+            feedback.append(f"未使用的变量: {', '.join(unused_variables)}")
+
+        # 查找死循环
+        class InfiniteLoopAnalyzer(ast.NodeVisitor):
+            def visit_While(self, node):
+                if isinstance(node.test, ast.Constant) and node.test.value is True:
+                    feedback.append("检测到死循环: while True 语句")
+                self.generic_visit(node)
+
+        loop_analyzer = InfiniteLoopAnalyzer()
+        loop_analyzer.visit(tree)
+
+        # 查找未定义的变量
+        defined_variables = set()
+        class UndefinedVariableAnalyzer(ast.NodeVisitor):
+            def visit_Assign(self, node):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        defined_variables.add(target.id)
+                self.generic_visit(node)
+
+            def visit_Name(self, node):
+                if isinstance(node.ctx, ast.Load) and node.id not in defined_variables:
+                    feedback.append(f"未定义的变量: {node.id}")
+                self.generic_visit(node)
+
+        undefined_var_analyzer = UndefinedVariableAnalyzer()
+        undefined_var_analyzer.visit(tree)
+
+        # 查找函数缺少返回值
+        class MissingReturnAnalyzer(ast.NodeVisitor):
+            def visit_FunctionDef(self, node):
+                has_return = False
+                for sub_node in ast.walk(node):
+                    if isinstance(sub_node, ast.Return):
+                        has_return = True
+                        break
+                if not has_return:
+                    feedback.append(f"函数 {node.name} 缺少返回值")
+                self.generic_visit(node)
+
+        missing_return_analyzer = MissingReturnAnalyzer()
+        missing_return_analyzer.visit(tree)
+
+        # 查找未使用的导入语句
+        imported_modules = set()
+        used_modules = set()
+        class ImportAnalyzer(ast.NodeVisitor):
+            def visit_Import(self, node):
+                for alias in node.names:
+                    imported_modules.add(alias.name)
+            def visit_ImportFrom(self, node):
+                if node.module:
+                    imported_modules.add(node.module)
+            def visit_Attribute(self, node):
+                if isinstance(node.value, ast.Name):
+                    used_modules.add(node.value.id)
+
+        import_analyzer = ImportAnalyzer()
+        import_analyzer.visit(tree)
+        unused_imports = imported_modules - used_modules
+        if unused_imports:
+            feedback.append(f"未使用的导入语句: {', '.join(unused_imports)}")
+
+        if feedback:
+            return "\n".join(feedback)
+        else:
+            return "代码没有明显问题。"
+    except SyntaxError as e:
+        return f"代码存在语法错误: {e}"
+
+
+# 模拟LLM根据反馈优化代码
+def optimize_code(code, feedback):
+    if "未使用的变量" in feedback:
+        unused_vars = feedback.split(": ")[1].split(", ")
+        new_lines = []
+        for line in code.split('\n'):
+            skip = False
+            for var in unused_vars:
+                if f"{var} =" in line:
+                    skip = True
+                    break
+            if not skip:
+                new_lines.append(line)
+        code = '\n'.join(new_lines)
+
+    if "检测到死循环" in feedback:
+        new_lines = []
+        for line in code.split('\n'):
+            if "while True:" not in line:
+                new_lines.append(line)
+        code = '\n'.join(new_lines)
+
+    if "未使用的导入语句" in feedback:
+        unused_imports = feedback.split(": ")[1].split(", ")
+        new_lines = []
+        for line in code.split('\n'):
+            skip = False
+            for import_name in unused_imports:
+                if f"import {import_name}" in line or f"from {import_name}" in line:
+                    skip = True
+                    break
+            if not skip:
+                new_lines.append(line)
+        code = '\n'.join(new_lines)
+
+    return code
+
+
+# 主流程
+generated_code = generate_code()
+print("初始生成的代码:")
+print(generated_code)
+
+feedback = analyze_code(generated_code)
+print("\n代码分析反馈:")
+print(feedback)
+
+optimized_code = optimize_code(generated_code, feedback)
+print("\n优化后的代码:")
+print(optimized_code)
+    
+```
+
+
 ## path导入问题
 在当前目录OpenManus下，准备两个文件test_path.py和test_path/test_path.py
 两个文件内容都是
@@ -1112,6 +1283,7 @@ __main__
 此时，如果要测试app/module1/test.py   
 也放在 .目录下， 运行python -m app.module1.test来运行 test.py中的 if \_\_name\_\_ == "\_\_main\_\_":   
   
+
 
 ## end
 
