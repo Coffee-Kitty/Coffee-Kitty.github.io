@@ -1,0 +1,52 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/27.0.2 Chrome/134.0.6998.205 Electron/35.3.0 Safari/537.36" version="27.0.2">
+  <diagram name="第 1 页" id="ZFFgTZRM4mrvgQ62h_yj">
+    <mxGraphModel dx="1026" dy="593" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="du4KWUWUizgfbgifVACc-2" value="日志" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="210" y="150" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-3" value="工具" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="210" y="230" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-4" value="模型交互" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="210" y="310" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-5" value="配置" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="210" y="390" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-6" value="TOML配置文件" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fontColor=#000000;darkOpacity=0.05;fillColor=#FFF9B2;strokeColor=none;fillStyle=solid;direction=west;gradientDirection=north;gradientColor=#FFF2A1;shadow=1;size=20;pointerEvents=1;" vertex="1" parent="1">
+          <mxGeometry x="225" y="460" width="90" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-7" value="vLLM&lt;div&gt;api node&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="150" width="70" height="350" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-9" value="code dataset" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" vertex="1" parent="1">
+          <mxGeometry x="640" y="150" width="90" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-10" value="evaluator" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="610" y="270" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-12" value="search_agent" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="150" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-13" value="memory_agent" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="240" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-14" value="test_agent" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="320" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-15" value="optimizer_agent" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="400" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-18" value="coordinator" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="530" y="240" width="70" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="du4KWUWUizgfbgifVACc-19" value="MstageRunner" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="610" y="400" width="120" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
