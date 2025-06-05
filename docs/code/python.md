@@ -1070,6 +1070,14 @@ if __name__ == '__main__':
 import ast
 
 
+<<<<<<< Updated upstream
+=======
+## ast
+```python
+import ast
+
+
+>>>>>>> Stashed changes
 # 模拟LLM生成代码
 def generate_code():
     return """
@@ -1237,6 +1245,7 @@ print(optimized_code)
     
 ```
 
+<<<<<<< Updated upstream
 
 ## path导入问题
 在当前目录OpenManus下，准备两个文件test_path.py和test_path/test_path.py
@@ -1281,6 +1290,8 @@ __main__
 也放在 .目录下， 运行python -m app.module1.test来运行 test.py中的 if \_\_name\_\_ == "\_\_main\_\_":   
   
 
+=======
+>>>>>>> Stashed changes
 
 ## end
 
