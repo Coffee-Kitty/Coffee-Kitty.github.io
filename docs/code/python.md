@@ -182,7 +182,7 @@ print(dir(random))
 >   '2019-08-09'
 >   >>> repr(today)
 >   'datetime.date(2019, 8, 9)'
->       
+>             
 >   ```
 >
 >   `str()`函数致力于为<font color='red'>终端用户</font>创造字符串输出,目标是可读性（`readable`）,调用的是对象的`__str__()`函数,返回的字符串是<font color='red'>非正式地</font>
@@ -1254,12 +1254,12 @@ print(optimized_code)
 import sys
 print(__name__)
 print(sys.path)
-```  
+```
 然后下面是运行及结果
 (OpenManus) # python test_path.py  
 __main__  
 \['/workspace/xsc_workspace/OpenManus', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python312.zip', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python3.12', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python3.12/lib-dynload', '/workspace/xsc_workspace/OpenManus/.venv/lib/python3.12/site-packages'\]  
-  
+
 (OpenManus) #python test_path/test_path.py  
 __main__  
 \['/workspace/xsc_workspace/OpenManus/test_path', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python312.zip', '/root/.local/share/uv/python/cpython-3.12.9-linux-x86_64-gnu/lib/python3.12',  
@@ -1271,7 +1271,7 @@ __main__
 从sys.path打印的目录第一个元素，我们可以看到运行 python -m test_path.test_path时，搜索路径还是OpenManus，   
 而运行python test_path/test_path.py时，搜索目录却变成了/workspace/xsc_workspace/OpenManus/test_path，   
 后者的这个情况，将导致一些包导入的问题。  
-  
+
 因此，之后的编码中需要妥善安排目录结构及测试，  
 比如如下的目录结构  
 - .
@@ -1283,15 +1283,84 @@ __main__
     - logs/
     - datas/
     - main.py
-  
+
 把module都安排在app目录下，并且所有的导包统一使用from app.  
 所有的执行都与main.py app同目录，即.目录   
 此时，如果要测试app/module1/test.py   
 也放在 .目录下， 运行python -m app.module1.test来运行 test.py中的 if \_\_name\_\_ == "\_\_main\_\_":   
-  
+
 
 =======
 >>>>>>> Stashed changes
 
-## end
 
+
+## Python `pathlib` 简明教程
+
+`pathlib` 从 **Python 3.4** 开始加入标准库，用于处理文件和目录路径。
+ 相比 `os` 模块，`pathlib` 更加 **可读、简洁、跨平台**。
+
+1. 基本用法
+
+```python
+from pathlib import Path
+
+# 当前目录
+p = Path(".")
+print(p.resolve())  # 输出绝对路径
+
+# 拼接路径（支持 / 运算符）
+data = p / "data" / "file.txt"
+print(data)
+```
+
+2. 路径属性
+
+```python
+p = Path("example/test.txt")
+
+print(p.name)       # 文件名: test.txt
+print(p.stem)       # 主名: test
+print(p.suffix)     # 扩展名: .txt
+print(p.parent)     # 父目录: example
+print(p.exists())   # 是否存在
+print(p.is_file())  # 是否是文件
+print(p.is_dir())   # 是否是目录
+```
+
+3. 文件和目录操作
+
+```python
+p = Path("newdir")
+
+p.mkdir(exist_ok=True)   # 创建目录（如果已存在则不报错）
+(p / "sub.txt").write_text("Hello, pathlib!")  # 写文件
+print((p / "sub.txt").read_text())             # 读文件
+```
+
+4. 遍历文件
+
+```python
+# 遍历当前目录所有文件
+for f in Path(".").iterdir():
+    print(f)
+
+# 递归搜索所有 .py 文件
+for f in Path(".").rglob("*.py"):
+    print(f)
+```
+
+5. 常见技巧
+
+```python
+# 获取用户目录
+home = Path.home()
+print(home)
+
+# 获取当前脚本所在目录
+here = Path(__file__).parent
+
+# 替换文件后缀
+p = Path("data.csv")
+print(p.with_suffix(".json"))  # data.json
+```
