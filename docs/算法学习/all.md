@@ -200,3 +200,33 @@ class Solution:
 
 
 
+
+
+[1685. 有序数组中差绝对值之和](https://leetcode.cn/problems/sum-of-absolute-differences-in-a-sorted-array/)
+
+```python
+class Solution:
+    def getSumAbsoluteDifferences(self, nums: List[int]) -> List[int]:
+        """
+            1e5所以复杂度至少 n^2肯定不行
+
+            对于每个元素i，都需要跟其他所有元素计算下绝对值差。那这样肯定是 n^2
+            能否前缀和？或者是说用 整个元素组和 - 元素i*元素数组长度呢?不能，因为是绝对值， 发现位于元素i左侧的，应该是元素i-左侧元素， 右侧则为 -元素i
+            而这样的左右两侧的和，恰好能用前缀和得到
+            这样 on 即可解决
+        """ 
+
+        res = []
+        pre = list(accumulate(nums,initial=0)) #i+1代表i
+        for i,tmp in enumerate(nums):
+            lef = tmp*i - pre[i]
+            rig = pre[len(nums)]-pre[i+1] - tmp * (len(nums)-1-i)
+            res.append(lef+rig)
+        return  res
+
+```
+
+
+
+
+
