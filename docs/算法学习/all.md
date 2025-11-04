@@ -228,5 +228,47 @@ class Solution:
 
 
 
+[2615. 等值距离和](https://leetcode.cn/problems/sum-of-distances/)
+
+```python
+class Solution:
+    def distance(self, nums: List[int]) -> List[int]:
+        # 1.收集起来
+        # 2.按照距离和的思路即可
+
+        d = defaultdict(list)
+        pre = defaultdict(list)
+        for i,num in enumerate(nums):
+            d[num].append(i)
+            if pre[num]:
+                pre[num].append(i+pre[num][-1])
+            else:
+                pre[num].append(i)
+        # print(d)
+        # print(pre)
+
+        arr = []
+        for i,num in enumerate(nums):
+            if len(d[num]) == 1:
+                arr.append(0)
+            else:
+                j = bisect.bisect_left(d[num], i) # 到这里已经nlogn了
+
+                # 所以这里用前缀和+二分优化
+                lef = -pre[num][j-1] + j*i if j>=1 else 0
+                rig = pre[num][-1]-pre[num][j]-(len(d[num])-j-1)*i
+                arr.append(lef+rig)
+
+        return arr
+```
+
+
+
+### 前缀异或和
+
+
+
+
+
 
 

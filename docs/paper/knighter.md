@@ -328,3 +328,84 @@ SOSP   ACM Symposium on Operating Systems Principles
 ### 相关背景
 
 #### Clang Static Analyzer
+
+Clang 是 LLVM 的子项目，是LLVM的前端之一，是LLVM 的 **C/C++/Objective-C 前端**，负责把 C/C++ 代码转成 LLVM IR。
+
+而LLVM提供编译器**底层基础设施**（IR、优化 passes、后端生成等）。
+
+
+
+# insight
+
+motivation是？？？
+
+
+
+在historical commit中存在如下vulnerability：
+
+Null-Pointer-Dereference vulnerability  pattern
+
+![image-20251027181725794](../picture.asset/image-20251027181725794.png)
+
+而 没有static analysis tool会检测这样的问题。 即使是专门检查kernel的Smatch，也因为缺乏领域知识（即devm_kzalloc）可能返回null，而无法检测出来。
+
+
+
+这么一个简单问题，为啥static analyzer检测不出来？？？
+
+inter-procedual analysis  做的不好？ 近似太多了？ 还是没有专门针对Null-Pointer-Dereference的？针对Null-Pointer-Dereference的 误报太多？
+
+
+
+
+
+
+
+然后用如下方法， 在 历史patch中挖掘出checker，这些checker可能同样被忽略。
+
+由此补充了静态分析的不足之处。
+
+
+
+
+
+# code insight
+
+ llm as analyzer
+
+0. docker构建🤮， pdb debug其实也勉强够用🤔， qwen-7b压根生成不了validate checker，更别提plausible checker了。。😓
+1. 用 import git库， 根据commit_id获取对应 patch，然后封装
+2. 方法真就如下图
+
+将**补丁提交**作为输入并输出相应的 **CSA 检查器**。
+
+<img src="../picture.asset/image-20251024190517831.png" alt="image-20251024190517831" style="zoom:80%;" />
+
+​	提取pattern
+
+​	指定plan
+
+​	但是就只是plan prompt进去llm， 就输出checker
+
+​	然后编译失败，就接着repair
+
+​	最后再validate checker， 通过 commit 前后的能否查出该bug数据
+
+​	最后的最后 扫描整个仓库，优化report，agent自我判定分拣，报告少且FP较低 到一定阈值。迭代停止。
+
+
+
+
+
+> 方法其实不难，难的是对整个系统的认识，prompt细节，辅助函数等
+
+> git居然还有对应python库。。。
+
+
+
+
+
+
+
+
+
