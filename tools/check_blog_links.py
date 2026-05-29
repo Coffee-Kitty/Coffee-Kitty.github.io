@@ -10,6 +10,7 @@ from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+HTML_ATTR = re.compile(r"\b(?:src|href)=(['\"])(.*?)\1")
 
 
 def candidates_for(source: Path, raw: str) -> list[Path]:
@@ -27,7 +28,16 @@ def candidates_for(source: Path, raw: str) -> list[Path]:
 
 
 def is_external(raw: str) -> bool:
-    return raw.startswith(("http://", "https://", "mailto:", "#"))
+    return raw.startswith(("http://", "https://", "mailto:", "data:", "javascript:", "#"))
+
+
+def iter_internal_targets(line: str) -> list[str]:
+    targets: list[str] = []
+    for match in LINK.finditer(line):
+        targets.append(match.group(1).strip())
+    for match in HTML_ATTR.finditer(line):
+        targets.append(match.group(2).strip())
+    return targets
 
 
 def main() -> int:
@@ -44,8 +54,7 @@ def main() -> int:
                 continue
             if in_code_block:
                 continue
-            for match in LINK.finditer(line):
-                raw = match.group(1).strip()
+            for raw in iter_internal_targets(line):
                 if not raw or is_external(raw):
                     continue
                 if not any(candidate.exists() for candidate in candidates_for(path, raw)):

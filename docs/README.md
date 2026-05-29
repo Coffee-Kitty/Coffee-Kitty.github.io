@@ -2,8 +2,8 @@
 
 <div class="home-hero">
   <p class="eyebrow">建立于 2024 年 10 月 17 日</p>
-  <h1>把生活、学习和研究放到同一条可追踪的线上。</h1>
-  <p>这里主要展示论文阅读、LLM/Agent 实践、代码工具、算法训练，以及适合公开的阶段复盘。</p>
+  <h1>把研究问题和技术学习整理成能持续跟进的系统。</h1>
+  <p>公开站点现在只保留 Research 和 Tech 两个主体；日记、复盘、申请材料、简历和密钥都迁到了 private。</p>
 </div>
 
 <div class="home-grid">
@@ -17,11 +17,15 @@
   </a>
   <a class="home-card" href="#/timeline.md">
     <strong>公开时间线</strong>
-    <span>按日期查看学习笔记和公开复盘。</span>
+    <span>按日期查看公开研究和技术笔记。</span>
   </a>
-  <a class="home-card" href="#/paper/README.md">
-    <strong>论文学习</strong>
-    <span>模型、RAG、代码智能体和研究笔记。</span>
+  <a class="home-card" href="#/research/README.md">
+    <strong>Research</strong>
+    <span>LLM / Agent 与 SE / LLM4SE 两条研究主线。</span>
+  </a>
+  <a class="home-card" href="#/tech/README.md">
+    <strong>Tech</strong>
+    <span>AI 工程、编程、工具、算法和课程笔记。</span>
   </a>
 </div>
 
@@ -29,18 +33,18 @@
 
 | 栏目 | 主要内容 | 入口 |
 | --- | --- | --- |
-| 论文学习 | LLM、RAG、代码智能体、研究计划 | [进入](/paper/README.md) |
-| LLM / Agent | vLLM、SFT、OpenManus、部署和工具链 | [进入](/llm/README.md) |
-| 代码工具 | Python、Linux、VS Code、Playwright、设计模式 | [进入](/code/README.md) |
-| 传统算法 | Hot 100、灵茶题单、数据结构和专题总结 | [进入](/传统算法学习/README.md) |
-| 复盘记录 | 年末回顾、实习、公开生活和学习总结 | [进入](/life/README.md) |
+| Research | LLM / Agent、SE / LLM4SE、论文和实验结论 | [进入](/research/README.md) |
+| Tech | AI 工程、编程、工具、算法和课程学习 | [进入](/tech/README.md) |
+| LLM / Agent | 模型、数据、评测、RAG、Agent 框架 | [进入](/research/llm-agent/README.md) |
+| SE / LLM4SE | 代码智能、程序分析、bug reproduction、program repair | [进入](/research/se-llm4se/README.md) |
+| AI Engineering | vLLM、Ollama、显存估计、深度学习基础 | [进入](/tech/ai-engineering/README.md) |
 
 ## 维护方式
 
 这个博客现在按“入口页 + 自动索引 + 主题笔记”的方式维护：
 
-1. 新文章放进对应公开目录，私人内容放到 `private/`。
+1. 研究文章放进 `docs/research/`，技术文章放进 `docs/tech/`。
 2. 公开学习笔记尽量在文件名或文章元信息里保留日期。
 3. 运行 `npm run index` 生成公开时间线。
 4. 运行 `npm run check:links` 检查内部链接。
-5. 栏目 README 只保留精选入口和主题结构，避免手动维护所有文章链接。
+5. 日记、复盘、申请材料、简历、密钥和草稿放进 `private/`，不要放进公开导航。

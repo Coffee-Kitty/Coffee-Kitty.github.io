@@ -4,17 +4,19 @@
 * [内容分类](/content-map.md)
 * [学习地图](/learning-map.md)
 * [公开时间线](/timeline.md)
-* [Memo](/memo.md)
 
-* 学习主线
-  * [论文学习](/paper/README.md)
-  * [LLM / Agent](/llm/README.md)
-  * [代码工具](/code/README.md)
-  * [传统算法](/传统算法学习/README.md)
-  * [深度学习](/深度学习/README.md)
-  * [CPython](/cpython/intro.md)
+* Research
+  * [研究总览](/research/README.md)
+  * [LLM / Agent](/research/llm-agent/README.md)
+    * [Models / Data / Evals](/research/llm-agent/models-data-evals/README.md)
+    * [Agents](/research/llm-agent/agents/README.md)
+  * [SE / LLM4SE](/research/se-llm4se/README.md)
+    * [Code Intelligence](/research/se-llm4se/code-intelligence/README.md)
 
-* 复盘
-  * [生活索引](/life/README.md)
-  * [2025 年末回顾](/life/2025年末回顾.md)
-  * [2024 年末回顾](/life/2024年末回顾.md)
+* Tech
+  * [技术总览](/tech/README.md)
+  * [AI Engineering](/tech/ai-engineering/README.md)
+  * [Programming](/tech/programming/README.md)
+  * [Dev Tools](/tech/dev-tools/README.md)
+  * [Algorithms](/tech/algorithms/README.md)
+  * [CS Courses](/tech/cs-courses/README.md)

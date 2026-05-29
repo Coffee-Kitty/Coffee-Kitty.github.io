@@ -6,19 +6,19 @@
 
 | 主线 | 目标 | 主要入口 |
 | --- | --- | --- |
-| LLM / Agent | 跟进模型部署、SFT、Agent 框架和 SWE 方向实践 | [LLM / Agent](/llm/README.md) |
-| 论文学习 | 把论文阅读沉淀成可复用的研究问题和实验想法 | [论文学习](/paper/README.md) |
-| 代码能力 | 维护常用工具链、工程实践和调试经验 | [代码工具](/code/README.md) |
-| 传统算法 | 建立稳定的题型视角和专题复盘体系 | [传统算法](/传统算法学习/README.md) |
-| 公开复盘 | 记录适合公开的阶段选择、学习节奏和方法论 | [复盘记录](/life/README.md) |
+| LLM / Agent | 跟进模型、数据、评测、RAG 和 Agent 框架 | [LLM / Agent](/research/llm-agent/README.md) |
+| SE / LLM4SE | 沉淀代码智能、程序分析和软件工程方向研究 | [SE / LLM4SE](/research/se-llm4se/README.md) |
+| AI Engineering | 维护部署、推理服务、显存估计和深度学习基础 | [AI Engineering](/tech/ai-engineering/README.md) |
+| Programming | 整理 Python、CPython、编程语言和工程实践 | [Programming](/tech/programming/README.md) |
+| Algorithms | 建立稳定的题型视角和专题复盘体系 | [Algorithms](/tech/algorithms/README.md) |
 
 ## 跟进节奏
 
 | 节奏 | 记录位置 | 建议内容 |
 | --- | --- | --- |
 | 每日 | `private/diary/` | 做了什么、卡在哪里、下一步是什么 |
-| 每周 | [Memo](/memo.md) 或日记 | 本周推进、问题清单、下周优先级 |
-| 每篇论文 | [论文学习](/paper/README.md) | 核心问题、方法、实验、可迁移想法 |
+| 每周 | `private/research-logs/` | 本周推进、问题清单、下周优先级 |
+| 每篇论文 | [Research](/research/README.md) | 核心问题、方法、实验、可迁移想法 |
 | 每个项目 | 对应主题目录 | 背景、目标、复现步骤、踩坑和结论 |
 
 ## 写作模板
