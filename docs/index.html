@@ -1,152 +1,90 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <title>猫猫拯救世界</title>
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
-  <meta name="description" content="Description">
+  <meta name="description" content="coffeecat 的个人博客，记录生活、论文学习、LLM/Agent、代码工具和算法训练。">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-  <!-- 主题 -->
-  <!-- default -->
+  <meta name="theme-color" content="#2f6f68">
   <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
-  <!-- Theme: Simple -->
-  <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css"> -->
-  <!-- gitalk css -->
-  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk/dist/gitalk.css">
-
- 
+  <link rel="stylesheet" href="https://unpkg.com/docsify-toc@1.0.0/dist/toc.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/sidebar.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+  <link rel="stylesheet" href="styles/custom.css">
 </head>
 <body>
-  <div id="app">Please wait...</div>
- 
+  <div id="app">正在加载 coffeecat 的小屋...</div>
 
   <script>
-
     window.$docsify = {
       name: 'coffeecat',
-      repo: 'https://github.com/Coffee-Kitty/Coffee-Kitty.github.io',//配置仓库地址
-      loadSidebar: true,//开启侧边栏
-      subMaxLevel:0,//侧边栏生成目录最大层数为0
+      repo: 'https://github.com/Coffee-Kitty/Coffee-Kitty.github.io',
+      homepage: 'README.md',
+      loadSidebar: true,
+      loadNavbar: true,
+      coverpage: true,
+      notFoundPage: '_404.md',
+      auto2top: true,
+      maxLevel: 3,
+      subMaxLevel: 0,
+      themeColor: '#2f6f68',
+      mergeNavbar: true,
       alias: {
         '/.*/_sidebar.md': '/_sidebar.md'
       },
-      coverpage: true, //开启封面
-      loadNavbar: true,//顶部导航栏 即_navbar.md相关内容
-      search: 'auto',//全文搜索
-      toc: {//文章内导航
+      search: {
+        paths: 'auto',
+        placeholder: '搜索文章、论文、代码笔记',
+        noData: '没有找到结果',
+        depth: 4,
+      },
+      toc: {
         scope: '.markdown-section',
         headings: 'h1, h2, h3, h4, h5, h6',
         title: '导航',
       },
-      copyCode: {//代码复制
-          // buttonText : 'buttonText:String',
-          // errorText : 'errorText:String',
-          // successText: 'successText:String'
-          buttonText: {
-              '/zh-cn/': '点击复制',
-              '/ru/': 'Скопировать в буфер обмена',
-              '/de-de/': 'Klicken Sie zum Kopieren',
-              '/es/': 'Haga clic para copiar',
-              '/': 'Copy to clipboard'
-          },
-          errorText: {
-              '/zh-cn/': '错误',
-              '/ru/': 'ошибка',
-              '/': 'Error'
-          },
-          successText: {
-              '/zh-cn/': '复制',
-              '/ru/': 'Скопировано',
-              '/de-de/': 'Kopiert',
-              '/es/': 'Copiado',
-              '/': 'Copied'
-          },
-          
+      copyCode: {
+        buttonText: '复制',
+        errorText: '复制失败',
+        successText: '已复制',
       },
-      latex: {//latex支持
-        inlineMath   : [['$', '$'], ['@', '@']],
-        displayMath  : [['$$', '$$'], ['@@', '@@']],
+      latex: {
+        inlineMath: [['$', '$'], ['@', '@']],
+        displayMath: [['$$', '$$'], ['@@', '@@']],
       },
-      // disqus: 'shortname',//disqus评论系统
-      count:{//字数统计
-        countable:true,
-        fontsize:'0.9em',
-        color:'rgb(90,90,90)',
-        language:'chinese'
+      count: {
+        countable: true,
+        fontsize: '0.9em',
+        color: 'rgb(90,90,90)',
+        language: 'chinese'
       },
-
+      pagination: {
+        previousText: '上一篇',
+        nextText: '下一篇',
+        crossChapter: true,
+        crossChapterText: true,
+      },
     }
   </script>
-  <!-- gitalk评论系统插件 -->
-  <!-- <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/gitalk.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script> -->
-  <!-- <script>
-    var gitalk = new Gitalk({
-      clientID: 'Ov23lieAXtKjTHP0gM33',
-      clientSecret: '2fb8444ff14aa71f6361b193774a0b0ca9349237',
-      repo: 'Coffee-Kitty.github.io',
-      owner: 'Coffee-Kitty',
-      admin: ['Coffee-Kitty'],
-      title: location.hash.match(/#(.*?)([?]|$)/)[1],
-      id: location.hash.match(/#(.*?)([?]|$)/)[1],
-    })
-    // 监听URL中hash的变化，如果发现换了一个MD文件，那么刷新页面，解决整个网站使用一个gitalk评论issues的问题。
-    window.onhashchange = function(event){
-        if(event.newURL.split('?')[0] !== event.oldURL .split('?')[0]) {
-          location.reload()
-        }
-    }
 
-  </script> -->
-  <!-- Docsify v4 -->
   <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
-  <!-- 下面为插件 -->
-  <!-- 文章内导航 -->
   <script src="https://unpkg.com/docsify-toc@1.0.0/dist/toc.js"></script>
-
-  <link rel="stylesheet" href="https://unpkg.com/docsify-toc@1.0.0/dist/toc.css">
-  <!-- 图片压缩插件 -->
   <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/zoom-image.min.js"></script>
-  <!-- 复制到剪切板插件 -->
   <script src="//cdn.jsdelivr.net/npm/docsify-copy-code/dist/docsify-copy-code.min.js"></script>
-  <!-- python代码高亮 -->
-  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
-  <!-- 代码复制 -->
-  <script src="//cdn.jsdelivr.net/npm/docsify-copy-code"></script>
-  <!-- 侧边栏折叠 -->
   <script src="//cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/docsify-sidebar-collapse.min.js"></script>
-  <!-- 箭头型图标指示折叠 -->
-  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/sidebar.min.css"/>
-  <!-- latex语法解析 -->
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-latex.min.js"></script>
   <script src="//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   <script src="//cdn.jsdelivr.net/npm/docsify-latex@0"></script>
-  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-latex.min.js"></script>
-
-
-  <!-- or <script src="//cdn.jsdelivr.net/gh/upupming/docsify-katex/dist/docsify-katex.js"></script> -->
-  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css" />
-  <!-- 全文搜索 -->
   <script src="//unpkg.com/docsify/lib/plugins/search.js"></script>
-  <!-- ipynb嵌入 -->
-  <!-- 引入 docsify-ipynb 插件 -->
   <script src="https://cdn.jsdelivr.net/npm/docsify-ipynb@latest/dist/docsify-ipynb.min.js"></script>
-  <!-- pdf嵌入 -->
-  <!-- PDFObject.js is a required dependency of this plugin -->
   <script src="//cdnjs.cloudflare.com/ajax/libs/pdfobject/2.1.1/pdfobject.min.js"></script> 
-  <!-- or use this if you are not hosting the file yourself -->
   <script src="//unpkg.com/docsify-pdf-embed-plugin/src/docsify-pdf-embed.js"></script>
-
-  <!-- 链接下一篇文章插件 -->
   <script src="//cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
-  <!-- 字数统计插件 -->
   <script src="//unpkg.com/docsify-count/dist/countable.js"></script>
-
-  <!-- 评论系统Disqus 待完成 -->
-  <!-- <script src="//unpkg.com/docsify/lib/plugins/disqus.min.js"></script> -->
-  <!-- 自己造插件 -待完成 -->
-  <!-- <script src="./timeline-plugin.js"></script> -->
-
-
-
 </body>
 </html>

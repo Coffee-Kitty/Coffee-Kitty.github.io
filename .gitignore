@@ -1,0 +1,17 @@
+.DS_Store
+__MACOSX/
+.ipynb_checkpoints/
+.npm-cache/
+private/
+
+# Office/editor temporary files
+~$*
+.~*
+*.tmp
+
+# Local secrets and environment files
+.env
+.env.*
+*.pem
+*.key
+MEGA-恢复密钥.txt

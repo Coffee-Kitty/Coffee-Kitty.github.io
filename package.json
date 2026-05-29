@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "index": "python3 tools/build_blog_index.py",
+    "check:links": "python3 tools/check_blog_links.py",
+    "serve": "npm_config_cache=.npm-cache npx --yes docsify-cli serve docs --port 3000"
+  },
+  "devDependencies": {
+    "docsify-cli": "^4.4.4"
+  }
+}
