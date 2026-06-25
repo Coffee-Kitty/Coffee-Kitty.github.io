@@ -6,4 +6,6 @@
 -->
 
 
-<iframe src="/assets/research/llm-agent/models-data-evals/test_sft.html" width="100%" height="720" frameborder="0"></iframe>
+# SFT
+
+这篇旧 notebook 导出暂时不作为公开正文展示，后续整理成 Markdown 笔记后再放回这一页。

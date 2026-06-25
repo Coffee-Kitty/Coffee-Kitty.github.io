@@ -10,6 +10,7 @@
   * [LLM / Agent](/research/llm-agent/README.md)
     * [Models / Data / Evals](/research/llm-agent/models-data-evals/README.md)
     * [Agents](/research/llm-agent/agents/README.md)
+  * [Code Agent](/research/code-agent/README.md)
   * [SE / LLM4SE](/research/se-llm4se/README.md)
     * [Code Intelligence](/research/se-llm4se/code-intelligence/README.md)
 

@@ -1,6 +1,6 @@
 # Tech
 
-这里放技术学习和工程实践。研究问题和论文放到 [Research](/research/README.md)，私人日记和复盘放到 `private/`。
+这里放技术学习和工程实践。研究问题和论文放到 [Research](/research/README.md)，私人日记和阶段总结放到 `private/`。
 
 ## 分类
 

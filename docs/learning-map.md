@@ -7,10 +7,11 @@
 | 主线 | 目标 | 主要入口 |
 | --- | --- | --- |
 | LLM / Agent | 跟进模型、数据、评测、RAG 和 Agent 框架 | [LLM / Agent](/research/llm-agent/README.md) |
+| Code Agent | 系统整理 SWE agent、仓库级修复、工具调用和补丁验证论文 | [Code Agent](/research/code-agent/README.md) |
 | SE / LLM4SE | 沉淀代码智能、程序分析和软件工程方向研究 | [SE / LLM4SE](/research/se-llm4se/README.md) |
 | AI Engineering | 维护部署、推理服务、显存估计和深度学习基础 | [AI Engineering](/tech/ai-engineering/README.md) |
 | Programming | 整理 Python、CPython、编程语言和工程实践 | [Programming](/tech/programming/README.md) |
-| Algorithms | 建立稳定的题型视角和专题复盘体系 | [Algorithms](/tech/algorithms/README.md) |
+| Algorithms | 建立稳定的题型视角和专题总结体系 | [Algorithms](/tech/algorithms/README.md) |
 
 ## 跟进节奏
 
