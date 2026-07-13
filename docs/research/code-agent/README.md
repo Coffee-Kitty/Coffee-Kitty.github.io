@@ -16,6 +16,12 @@
 | P1 | 看训练数据、环境和 post-training 方向 | SWE-smith, SWE-Gym, SWE-RL, SWE-Master |
 | P2 | 看 CI、skill、部署和自进化等扩展场景 | SWE-CI, SWE-Skills-Bench, Live-SWE-agent, SWE-World |
 
+agentic rl:
+
+AgentFlow: Trainable Flow Engineering for Agentic Reinforcement Learning  
+
+AgentGym-RL: Training LLM Agents for Long-Horizon Decision Making through Multi-Turn Reinforcement Learning
+
 ## Benchmark
 
 | 论文 | 简介 | 特点 | 状态 |
