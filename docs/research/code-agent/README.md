@@ -432,3 +432,53 @@ ICLR26, 斯坦福
 
 
 
+
+### SWE-PDB
+
+ChatDBG: Augmenting Debugging with Large Language Models
+
+debug-gym: A Text-Based Environment for Interactive Debugging
+
+
+
+教llm-14b使用pdb
+
+
+**大前提：**
+在能力强的大模型上，通过调试器将程序运行时信息提供给智能体，这一范式已经被证明能有效促进程序理解和修复。
+**问题所在：**
+对于较小的模型，即使给出指令，它也无法正常调试。 因此需要继续训练。
+**构造训练框架的三大挑战：**
+1.缺乏多轮交互式调试轨迹数据。
+2.对合成调试轨迹直接做监督学习的局限
+3.将强化学习应用于调试器使用的困难
+**本文方法SWE-PDB:**
+受人类开发者调试工作流启发：给定错误信息或缺陷描述，智能体迭代地检查源码、调用 PDB 设断点并查看运行时状态、编辑代码修复缺陷。具体做法：
+* 先合成大量"带失败测试的 Python 缺陷程序"，再生成"模型推理—调用 PDB—编辑代码"的多轮交互调试轨迹；
+* 用拒绝采样 + LLM-as-a-judge 剔除失败轨迹和误用调试工具的轨迹；
+* 对保留轨迹做细粒度精炼：剪除错误工具调用、修正推理内容；
+* 用精炼后的轨迹做智能体 SFT，让模型获得基础调试器使用模式；
+* 在此初始化之上做基于规则奖励的智能体 RL，发展更具策略性的调试器使用。
+
+1. 构造轨迹
+![构造轨迹](assets/README/image-35.png)
+
+将**预定义调试工作流**与"以**gold patch为条件的逆向推理**"相结合
+
+2. 简单拒绝采样
+  轨迹级手术——整条不合格就扔掉（没过测试 / 没有效用调试器）；
+3. 轨迹精炼
+  轮级手术——对已经留下的好轨迹，逐轮清理里面的局部瑕疵
+  诸如：错误的工具调用轮次：比如查看不存在的文件、启动调试器失败的尝试；
+  诸如：提到 gold patch 的推理内容：合成时的特权信息泄漏
+
+
+
+Optimizing CUDA like a Human: Micro-Profiling Tools as Expert Surrogates for LLM-Based GPU Kernel Optimization
+
+MOA: A Profiling-Guided LLM Framework for Memory-Optimization Automation at Codebase Scale
+
+
+
+
+

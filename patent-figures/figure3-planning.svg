@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040">
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 Z" fill="#000"/>
+    </marker>
+    <style>
+      .box { fill: #fff; stroke: #000; stroke-width: 3; }
+      .flow { fill: none; stroke: #000; stroke-width: 3; marker-end: url(#arrow); }
+      .main { font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 29px; font-weight: 600; text-anchor: middle; }
+      .sub { font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 22px; text-anchor: middle; }
+      .step { font-family: Arial, sans-serif; font-size: 22px; font-weight: 700; text-anchor: middle; }
+      .label { font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 21px; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1040" fill="#fff"/>
+
+  <rect class="box" x="130" y="45" width="350" height="90"/>
+  <text class="main" x="305" y="100">目标性能工作负载</text>
+  <rect class="box" x="1120" y="45" width="350" height="90"/>
+  <text class="main" x="1295" y="100">待优化代码仓库</text>
+
+  <rect class="box" x="525" y="175" width="550" height="120"/>
+  <text class="step" x="565" y="202">S301</text>
+  <text class="main" x="800" y="231">读取工作负载和相关源代码</text>
+  <text class="sub" x="800" y="270">形成工作负载语义分析与待验证假设</text>
+
+  <rect class="box" x="525" y="350" width="550" height="105"/>
+  <text class="step" x="565" y="377">S302</text>
+  <text class="main" x="800" y="411">获取热点排序结果并选取候选热点</text>
+
+  <rect class="box" x="525" y="510" width="550" height="105"/>
+  <text class="step" x="565" y="537">S303</text>
+  <text class="main" x="800" y="571">查询候选热点的画像上下文</text>
+  <text class="sub" x="800" y="602">上游调用路径与下游调用关系</text>
+
+  <rect class="box" x="525" y="670" width="550" height="105"/>
+  <text class="step" x="565" y="697">S304</text>
+  <text class="main" x="800" y="731">结合源代码语义识别目标瓶颈路径</text>
+  <text class="sub" x="800" y="762">判断主要开销的产生位置与触发位置</text>
+
+  <rect class="box" x="525" y="830" width="550" height="90"/>
+  <text class="step" x="565" y="857">S305</text>
+  <text class="main" x="800" y="889">确定代码编辑位置</text>
+
+  <rect class="box" x="525" y="965" width="550" height="60"/>
+  <text class="step" x="565" y="1003">S306</text>
+  <text class="main" x="800" y="1005">生成优化计划</text>
+
+  <rect class="box" x="80" y="350" width="320" height="105"/>
+  <text class="main" x="240" y="395">热点排序工具</text>
+  <text class="sub" x="240" y="430">瓶颈候选及时间指标</text>
+
+  <rect class="box" x="1200" y="510" width="320" height="105"/>
+  <text class="main" x="1360" y="555">画像上下文查询工具</text>
+  <text class="sub" x="1360" y="590">调用路径与开销构成</text>
+
+  <path class="flow" d="M 305 135 L 305 155 L 680 155 L 680 175"/>
+  <path class="flow" d="M 1295 135 L 1295 155 L 920 155 L 920 175"/>
+  <path class="flow" d="M 800 295 L 800 350"/>
+  <path class="flow" d="M 400 402 L 525 402"/>
+  <path class="flow" d="M 800 455 L 800 510"/>
+  <path class="flow" d="M 1200 562 L 1075 562"/>
+  <path class="flow" d="M 800 615 L 800 670"/>
+  <path class="flow" d="M 800 775 L 800 830"/>
+  <path class="flow" d="M 800 920 L 800 965"/>
+</svg>

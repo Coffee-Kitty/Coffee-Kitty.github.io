@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040">
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 Z" fill="#000"/>
+    </marker>
+    <style>
+      .box { fill: #fff; stroke: #000; stroke-width: 3; }
+      .flow { fill: none; stroke: #000; stroke-width: 3; marker-end: url(#arrow); }
+      .main { font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 29px; font-weight: 600; text-anchor: middle; }
+      .sub { font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 22px; text-anchor: middle; }
+      .step { font-family: Arial, sans-serif; font-size: 22px; font-weight: 700; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1040" fill="#fff"/>
+
+  <rect class="box" x="610" y="35" width="380" height="85"/>
+  <text class="main" x="800" y="88">目标性能工作负载</text>
+
+  <rect class="box" x="525" y="165" width="550" height="110"/>
+  <text class="step" x="565" y="193">S201</text>
+  <text class="main" x="800" y="220">执行工作负载并采集</text>
+  <text class="main" x="800" y="254">函数级运行画像</text>
+
+  <rect class="box" x="525" y="320" width="550" height="105"/>
+  <text class="step" x="565" y="347">S202</text>
+  <text class="main" x="800" y="376">合并重复执行或子进程产生的画像</text>
+  <text class="sub" x="800" y="408">调用次数、自执行时间、累计执行时间与调用关系</text>
+
+  <rect class="box" x="525" y="470" width="550" height="110"/>
+  <text class="step" x="565" y="497">S203</text>
+  <text class="main" x="800" y="526">过滤函数调用关系</text>
+  <text class="sub" x="800" y="560">保留工作负载可达节点并过滤计时基础设施</text>
+
+  <rect class="box" x="525" y="625" width="550" height="105"/>
+  <text class="step" x="565" y="652">S204</text>
+  <text class="main" x="800" y="681">划分仓库内部函数与外部函数</text>
+  <text class="sub" x="800" y="713">依据源代码路径和函数元数据进行分类</text>
+
+  <rect class="box" x="525" y="775" width="550" height="90"/>
+  <text class="step" x="565" y="802">S205</text>
+  <text class="main" x="800" y="834">执行时间归属与画像上下文构建</text>
+
+  <rect class="box" x="145" y="920" width="500" height="85"/>
+  <text class="main" x="395" y="963">热点排序工具</text>
+  <text class="sub" x="395" y="991">输出仓库内部函数的热点排序结果</text>
+
+  <rect class="box" x="955" y="920" width="500" height="85"/>
+  <text class="main" x="1205" y="963">画像上下文查询工具</text>
+  <text class="sub" x="1205" y="991">输出上游调用路径与下游调用关系</text>
+
+  <path class="flow" d="M 800 120 L 800 165"/>
+  <path class="flow" d="M 800 275 L 800 320"/>
+  <path class="flow" d="M 800 425 L 800 470"/>
+  <path class="flow" d="M 800 580 L 800 625"/>
+  <path class="flow" d="M 800 730 L 800 775"/>
+  <path class="flow" d="M 700 865 L 700 885 L 395 885 L 395 920"/>
+  <path class="flow" d="M 900 865 L 900 885 L 1205 885 L 1205 920"/>
+</svg>
