@@ -162,6 +162,18 @@ function fluffify(geometry, amount, rnd) {
   return geometry;
 }
 
+function paperPlaneGeometry() {
+  const geo = new THREE.BufferGeometry();
+  const v = new Float32Array([
+    0, 0, -0.55, -0.38, 0.1, 0.28, 0, 0.02, 0.18,
+    0, 0, -0.55, 0, 0.02, 0.18, 0.38, 0.1, 0.28,
+    0, 0, -0.55, 0, 0.02, 0.18, 0, -0.12, 0.3,
+  ]);
+  geo.setAttribute('position', new THREE.BufferAttribute(v, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
 let contactTex = null;
 function contactShadow(w, d, opacity = 0.32) {
   if (!contactTex) {
@@ -780,7 +792,7 @@ function initScene(data, container) {
 
   // 飞书 / 浮尘 / 碎石
   const flyers = [];
-  for (let i = 0; i < 3; i += 1) {
+  for (let i = 0; i < 2; i += 1) {
     const flyer = new THREE.Group();
     const cover = new THREE.Mesh(
       new THREE.BoxGeometry(0.68, 0.06, 0.88),
@@ -937,6 +949,56 @@ function initScene(data, container) {
     stone.rotation.y = rnd() * Math.PI;
     stone.receiveShadow = true;
     island.add(stone);
+  }
+
+  // 星尘粒子（两层闪烁）
+  const sparkleGeo = new THREE.BufferGeometry();
+  const sparkleCount = 70;
+  const sPos = new Float32Array(sparkleCount * 3);
+  for (let i = 0; i < sparkleCount; i += 1) {
+    const a = rnd() * Math.PI * 2;
+    const r = 14 + rnd() * 14;
+    sPos[i * 3] = Math.sin(a) * r;
+    sPos[i * 3 + 1] = 3 + rnd() * 13;
+    sPos[i * 3 + 2] = Math.cos(a) * r;
+  }
+  sparkleGeo.setAttribute('position', new THREE.Float32BufferAttribute(sPos, 3));
+  const sparkleMat = new THREE.PointsMaterial({
+    color: 0xfff3d9,
+    size: 0.14,
+    transparent: true,
+    opacity: 0.8,
+    depthWrite: false,
+    fog: false,
+  });
+  const sparkles = new THREE.Points(sparkleGeo, sparkleMat);
+  scene.add(sparkles);
+  const sparkleMat2 = new THREE.PointsMaterial({
+    color: 0xf7c8c0,
+    size: 0.1,
+    transparent: true,
+    opacity: 0.6,
+    depthWrite: false,
+    fog: false,
+  });
+  const sparkles2 = new THREE.Points(sparkleGeo, sparkleMat2);
+  sparkles2.rotation.y = 1.7;
+  sparkles2.scale.setScalar(1.25);
+  scene.add(sparkles2);
+
+  // 纸飞机群
+  const planes = [];
+  const planeGeo = paperPlaneGeometry();
+  for (let i = 0; i < 3; i += 1) {
+    const paper = new THREE.Mesh(planeGeo, toon(0xfff8ef, { side: THREE.DoubleSide }));
+    paper.userData = {
+      radius: 8.5 + i * 1.6,
+      speed: 0.14 + i * 0.05,
+      height: 6.5 + i * 1.2,
+      phase: i * 2.4,
+    };
+    scene.add(paper);
+    planes.push(paper);
   }
 
   // 轨道控制（手写球坐标）
@@ -1148,6 +1210,20 @@ function initScene(data, container) {
       const a = u.phase + elapsed * u.speed;
       flyer.position.set(Math.sin(a) * u.radius, u.height + Math.sin(elapsed * 0.8 + u.phase) * 0.25, Math.cos(a) * u.radius);
       flyer.rotation.set(Math.sin(elapsed * 0.6 + u.phase) * 0.3, a + Math.PI / 2, Math.cos(elapsed * 0.5 + u.phase) * 0.25);
+    }
+    sparkleMat.opacity = reduced ? 0.7 : 0.55 + Math.sin(elapsed * 1.4) * 0.25;
+    sparkleMat2.opacity = reduced ? 0.5 : 0.45 + Math.sin(elapsed * 1.1 + 2) * 0.25;
+    sparkles.rotation.y = elapsed * 0.01;
+    sparkles2.rotation.y = 1.7 - elapsed * 0.008;
+    for (const paper of planes) {
+      const u = paper.userData;
+      const a = u.phase + elapsed * u.speed;
+      paper.position.set(
+        Math.sin(a) * u.radius,
+        u.height + Math.sin(elapsed * 0.9 + u.phase) * 0.3,
+        Math.cos(a) * u.radius,
+      );
+      paper.rotation.set(0, a + Math.PI / 2, reduced ? 0 : Math.sin(elapsed * 1.2 + u.phase) * 0.3);
     }
     for (const chunk of chunks) {
       const u = chunk.userData;
