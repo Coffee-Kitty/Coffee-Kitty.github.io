@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="vendor/docsify-sidebar-collapse/sidebar.min.css">
   <link rel="stylesheet" href="vendor/katex/katex.min.css">
   <link rel="stylesheet" href="styles/custom.css">
+  <link rel="stylesheet" href="styles/home-scene.css">
 </head>
 <body>
   <div id="app">正在加载 coffeecat 的小屋...</div>
@@ -23,7 +24,7 @@
       homepage: 'README.md',
       loadSidebar: true,
       loadNavbar: true,
-      coverpage: true,
+      coverpage: false,
       notFoundPage: '_404.md',
       auto2top: true,
       maxLevel: 3,
@@ -41,7 +42,7 @@
       },
       toc: {
         scope: '.markdown-section',
-        headings: 'h1, h2, h3, h4, h5, h6',
+        headings: 'h1:not(#hero-title), h2, h3, h4, h5, h6',
         title: '导航',
       },
       copyCode: {
@@ -68,6 +69,13 @@
     }
   </script>
 
+  <script>
+    // docsify 在根路由 "/" 下会跳过 _navbar.md 拉取（旧版被 coverpage 遮掩），
+    // 启动时把 #/ 归一到 #/README.md，保证 navbar 稳定渲染。
+    if (location.hash === '' || location.hash === '#' || location.hash === '#/') {
+      location.replace('#/README.md');
+    }
+  </script>
   <script src="vendor/docsify/docsify.min.js"></script>
   <script src="vendor/docsify-toc/toc.js"></script>
   <script src="vendor/docsify/plugins/zoom-image.min.js"></script>
@@ -83,5 +91,9 @@
   <script src="vendor/docsify/plugins/search.min.js"></script>
   <script src="vendor/docsify-pagination/docsify-pagination.min.js"></script>
   <script src="vendor/docsify-count/countable.js"></script>
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.min.js" } }
+  </script>
+  <script type="module" src="scripts/library-scene.js"></script>
 </body>
 </html>

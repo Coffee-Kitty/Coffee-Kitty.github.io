@@ -1,0 +1,620 @@
+/* 3D 浮空图书馆首页 hero 版式（计划：plans/2026-10-21-3d-library-homepage.md） */
+
+.markdown-section:has(.home-hero) {
+  max-width: 1180px;
+}
+
+.content:has(.home-hero) .page_toc {
+  display: none;
+}
+
+.markdown-section:has(.home-hero) > h1:first-of-type {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.home-hero {
+  display: grid;
+  grid-template-columns: minmax(280px, 5fr) minmax(340px, 7fr);
+  gap: 28px;
+  align-items: center;
+  padding: 2rem 0 1.2rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.hero-copy h1 {
+  max-width: 20em;
+  margin: 0.3rem 0 0.8rem;
+  font-size: 2.55rem;
+  line-height: 1.22;
+  color: var(--text-strong);
+}
+
+.hero-copy .lede {
+  max-width: 46ch;
+  color: var(--text-muted);
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 1.15rem 0 0.85rem;
+}
+
+.hero-btn {
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  background: var(--theme-color);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.18s ease, transform 0.18s ease;
+}
+
+.hero-btn:hover {
+  background: #255a54;
+  color: #fff;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.markdown-section .hero-btn {
+  color: #fff;
+}
+
+.markdown-section .hero-btn:hover {
+  color: #fff;
+}
+
+.markdown-section .hero-btn.ghost {
+  color: var(--theme-color);
+}
+
+.markdown-section .hero-btn.ghost:hover {
+  color: #255a54;
+}
+
+.hero-btn.ghost {
+  background: transparent;
+  border: 1px solid var(--theme-color);
+  color: var(--theme-color);
+}
+
+.hero-btn.ghost:hover {
+  background: #eef4f1;
+  color: #255a54;
+}
+
+.hero-stats {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+.hero-scene {
+  position: relative;
+  height: clamp(360px, 46vw, 540px);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: radial-gradient(120% 92% at 50% 6%, #fffdf8 0%, #f7ecd9 55%, #eeddc2 100%);
+  overflow: hidden;
+}
+
+.hero-scene canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  outline: none;
+}
+
+.hero-scene canvas:active {
+  cursor: grabbing;
+}
+
+.scene-hint {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgb(255 253 248 / 0.75);
+  color: #8a7a63;
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.scene-tooltip {
+  position: absolute;
+  z-index: 5;
+  max-width: 250px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: rgb(38 50 56 / 0.92);
+  color: #fdf8ee;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+  box-shadow: 0 6px 18px rgb(38 50 56 / 0.25);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scene-tooltip[hidden] {
+  display: none;
+}
+
+.scene-fallback {
+  position: absolute;
+  inset: auto 14px 34px 14px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgb(255 253 248 / 0.9);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.hero-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 1rem 0 0.4rem;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fffaf2;
+  color: var(--text-body);
+  font-size: 0.82rem;
+  text-decoration: none;
+  transition: border-color 0.18s ease, color 0.18s ease;
+}
+
+.legend-chip:hover {
+  border-color: var(--chip, var(--theme-color));
+  color: var(--text-strong);
+  text-decoration: none;
+}
+
+.legend-chip i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--chip, var(--theme-color));
+}
+
+.legend-chip em {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-style: normal;
+}
+
+.legend-chip span {
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .home-hero {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .hero-copy h1 {
+    font-size: 2rem;
+  }
+
+  .hero-scene {
+    height: 340px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-btn,
+  .hero-btn:hover {
+    transform: none;
+  }
+}
+
+/* 书架分类标签（3D 场景上的 HTML 覆盖层） */
+
+.shelf-labels {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* 分类书目面板 */
+
+.shelf-panel {
+  position: absolute;
+  top: 50%;
+  right: clamp(16px, 3vw, 48px);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  width: min(320px, 86%);
+  max-height: min(62%, 460px);
+  transform: translateY(-50%);
+  border: 1px solid rgb(138 111 82 / 0.35);
+  border-radius: 14px;
+  background: rgb(255 253 248 / 0.94);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 14px 40px rgb(92 70 48 / 0.18);
+  overflow: hidden;
+}
+
+.shelf-panel[hidden] {
+  display: none;
+}
+
+.shelf-panel header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.shelf-panel header i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.shelf-panel header h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-family: "Songti SC", "STSong", "Noto Serif SC", serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+}
+
+.shelf-panel header em {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-style: normal;
+}
+
+.shelf-panel-close {
+  margin-left: auto;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.shelf-panel-close:hover {
+  background: #f1ece2;
+  color: var(--text-strong);
+}
+
+.shelf-panel-enter {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--theme-color);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.shelf-panel-enter:hover {
+  background: #f4f1ea;
+  text-decoration: underline;
+}
+
+.shelf-panel ul {
+  margin: 0;
+  padding: 6px 0 10px;
+  list-style: none;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.shelf-panel li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 14px;
+}
+
+.shelf-panel li a {
+  flex: 1;
+  color: var(--text-body);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shelf-panel li a:hover {
+  color: var(--theme-color);
+  text-decoration: underline;
+}
+
+.shelf-panel li time {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.shelf-panel li.empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* 纸缘晕染，让岛体溶进纸面 */
+
+.home-hero .hero-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(
+    115% 92% at 62% 46%,
+    transparent 52%,
+    rgb(247 236 217 / 0.45) 78%,
+    rgb(247 236 217 / 0.92) 100%
+  );
+}
+
+.home-hero .hero-copy h1 {
+  font-family: "Songti SC", "STSong", "Noto Serif SC", serif;
+  letter-spacing: 0.02em;
+}
+
+.home-hero .eyebrow {
+  letter-spacing: 0.18em;
+}
+
+@media (max-width: 900px) {
+  .shelf-panel {
+    top: auto;
+    right: 0;
+    bottom: 44px;
+    left: 0;
+    width: 100%;
+    max-height: 52%;
+    transform: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
+    border-radius: 14px 14px 0 0;
+  }
+}
+
+.shelf-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px 4px;
+  border: 1px solid rgb(138 111 82 / 0.38);
+  border-radius: 999px;
+  background: rgb(255 253 248 / 0.88);
+  color: #5c4630;
+  font-family: "Songti SC", "STSong", "Noto Serif SC", serif;
+  font-size: 12.5px;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translate(-50%, -135%);
+  backdrop-filter: blur(2px);
+  box-shadow: 0 2px 10px rgb(92 70 48 / 0.12);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.shelf-label::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: 10px;
+  background: rgb(138 111 82 / 0.45);
+}
+
+.shelf-label i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chip, var(--theme-color));
+}
+
+.shelf-label span {
+  white-space: nowrap;
+}
+
+.shelf-label em {
+  color: #8a7a63;
+  font-size: 11px;
+  font-style: normal;
+  letter-spacing: 0.05em;
+}
+
+.shelf-label:hover {
+  border-color: var(--chip, var(--theme-color));
+  background: #fffdf8;
+}
+
+.shelf-label[hidden] {
+  display: none;
+}
+
+/* 全页模式：图书馆占据整个页面，文案与图例叠加在场景上 */
+
+.markdown-section:has(.home-hero) > div:first-child {
+  display: none;
+}
+
+.markdown-section:has(.home-hero) .docsify-pagination-container {
+  display: none;
+}
+
+.markdown-section:has(.home-hero) {
+  max-width: none;
+  padding: 0;
+}
+
+.home-hero {
+  position: relative;
+  display: block;
+  height: calc(100vh - 64px);
+  min-height: 520px;
+  padding: 0;
+  border-bottom: none;
+  overflow: hidden;
+}
+
+.home-hero .hero-scene {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+}
+
+.home-hero .hero-scene canvas {
+  top: 0;
+  left: -2%;
+  width: 128%;
+  height: 100%;
+}
+
+.home-hero .hero-copy {
+  position: absolute;
+  top: clamp(84px, 14vh, 150px);
+  left: clamp(24px, 7vw, 110px);
+  max-width: 28rem;
+  padding: 18px 24px;
+  border: 1px solid rgb(231 223 208 / 0.9);
+  border-radius: 14px;
+  background: rgb(255 253 248 / 0.78);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 30px rgb(92 70 48 / 0.08);
+  pointer-events: none;
+}
+
+.home-hero .hero-copy::before {
+  content: none;
+}
+
+.home-hero .hero-legend {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  justify-content: center;
+  max-width: 92%;
+  margin: 0;
+}
+
+.home-hero .scene-hint {
+  left: auto;
+  right: 14px;
+  bottom: 14px;
+}
+
+@media (min-width: 901px) {
+  body:has(.home-hero) .sidebar {
+    transform: translateX(-100%);
+  }
+
+  body:has(.home-hero) .sidebar-toggle {
+    display: none;
+  }
+
+  .content:has(.home-hero) {
+    left: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  body:has(.home-hero) .sidebar-pin {
+    display: none;
+  }
+
+  .home-hero {
+    height: calc(100vh - 96px);
+    min-height: 460px;
+  }
+
+  .home-hero .hero-scene {
+    height: 100%;
+  }
+
+  .home-hero .hero-scene canvas {
+    left: 0;
+    width: 100%;
+  }
+
+  .home-hero .hero-copy {
+    top: 116px;
+    right: 12px;
+    left: 12px;
+    max-width: none;
+    padding: 12px 16px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgb(255 253 248 / 0.94);
+  }
+
+  .home-hero .hero-copy h1 {
+    font-size: 1.7rem;
+  }
+
+  .home-hero .hero-stats {
+    display: none;
+  }
+
+  .shelf-label {
+    display: none;
+  }
+
+  .home-hero .hero-legend {
+    left: 0;
+    bottom: 10px;
+    max-width: 100%;
+    padding: 0 12px 4px;
+    transform: none;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .home-hero .hero-legend::-webkit-scrollbar {
+    display: none;
+  }
+
+  .home-hero .scene-hint {
+    display: none;
+  }
+}
