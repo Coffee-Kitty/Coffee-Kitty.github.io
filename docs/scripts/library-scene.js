@@ -85,12 +85,12 @@ function deckTexture() {
   canvas.width = 256;
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#a87848';
+  ctx.fillStyle = '#ecd9b8';
   ctx.fillRect(0, 0, 256, 256);
   for (let x = 0; x < 256; x += 32) {
-    ctx.fillStyle = x % 64 === 0 ? '#9c6e40' : '#b08050';
+    ctx.fillStyle = x % 64 === 0 ? '#e5cfa9' : '#f1e0c2';
     ctx.fillRect(x, 0, 30, 256);
-    ctx.fillStyle = 'rgba(70, 45, 25, 0.5)';
+    ctx.fillStyle = 'rgba(150, 118, 80, 0.18)';
     ctx.fillRect(x + 30, 0, 2, 256);
   }
   for (let i = 0; i < 240; i += 1) {
@@ -109,17 +109,27 @@ function rugTexture() {
   canvas.width = 256;
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#a3543f';
+  ctx.fillStyle = '#f0e2c8';
   ctx.fillRect(0, 0, 256, 256);
-  const rings = ['#b8684f', '#8f4632', '#c07a5c', '#8f4632'];
-  rings.forEach((color, i) => {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 10;
+  ctx.strokeStyle = '#c97b5f';
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  ctx.arc(128, 128, 116, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = '#d9a08b';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(128, 128, 98, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(154, 176, 122, 0.45)';
+  for (let i = 0; i < 36; i += 1) {
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.random() * 78;
     ctx.beginPath();
-    ctx.arc(128, 128, 118 - i * 26, 0, Math.PI * 2);
-    ctx.stroke();
-  });
-  ctx.strokeStyle = 'rgba(240, 220, 190, 0.5)';
+    ctx.arc(128 + Math.cos(a) * r, 128 + Math.sin(a) * r, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(201, 123, 95, 0.35)';
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(128, 128, 60, 0, Math.PI * 2);
@@ -205,6 +215,7 @@ function initScene(data, container) {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const small = container.clientWidth < 640;
   const rnd = mulberry32(20261021);
+  const portrait = container.clientWidth / Math.max(container.clientHeight, 1) < 0.95;
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setClearColor(0x000000, 0);
@@ -221,10 +232,10 @@ function initScene(data, container) {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
-  const target = new THREE.Vector3(0, 0.6, 0);
+  const target = new THREE.Vector3(0, portrait ? 2.6 : 0.2, 0);
 
-  scene.add(new THREE.HemisphereLight(0xfff3e0, 0xb08a63, 1.15));
-  const key = new THREE.DirectionalLight(0xffe3b8, 2.4);
+  scene.add(new THREE.HemisphereLight(0xfff3e0, 0xb08a63, 0.95));
+  const key = new THREE.DirectionalLight(0xffdfae, 2.1);
   key.position.set(9, 15, 7);
   key.castShadow = true;
   key.shadow.mapSize.set(small ? 512 : 1024, small ? 512 : 1024);
@@ -237,9 +248,29 @@ function initScene(data, container) {
   key.shadow.bias = -0.0006;
   key.shadow.normalBias = 0.02;
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0xbcd4e6, 0.55);
+  const rim = new THREE.DirectionalLight(0xa9c4de, 0.7);
   rim.position.set(-9, 7, -9);
   scene.add(rim);
+
+  // 暖阳晕 + 距离雾，营造空气感
+  const glowCanvas = document.createElement('canvas');
+  glowCanvas.width = glowCanvas.height = 128;
+  const gctx = glowCanvas.getContext('2d');
+  const grad = gctx.createRadialGradient(64, 64, 4, 64, 64, 62);
+  grad.addColorStop(0, 'rgba(255, 240, 210, 0.9)');
+  grad.addColorStop(0.5, 'rgba(255, 224, 190, 0.35)');
+  grad.addColorStop(1, 'rgba(255, 224, 190, 0)');
+  gctx.fillStyle = grad;
+  gctx.fillRect(0, 0, 128, 128);
+  const glowTex = new THREE.CanvasTexture(glowCanvas);
+  glowTex.colorSpace = THREE.SRGBColorSpace;
+  const sun = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: glowTex, transparent: true, opacity: 0.85, depthWrite: false, fog: false }),
+  );
+  sun.position.set(12, 13, -16);
+  sun.scale.set(26, 26, 1);
+  scene.add(sun);
+  scene.fog = new THREE.Fog(0xf7e0d2, 36, 68);
 
   const island = new THREE.Group();
   scene.add(island);
@@ -253,9 +284,27 @@ function initScene(data, container) {
   );
   deck.receiveShadow = true;
   island.add(deck);
-  const rock = new THREE.Mesh(new THREE.CylinderGeometry(9.4, 1.1, 6.0, 9), wood(0x8a6f5c));
+  const rock = new THREE.Mesh(new THREE.CylinderGeometry(9.4, 1.1, 6.0, 9), wood(0xa08468));
   rock.position.y = -3.5;
   island.add(rock);
+  const strata1 = new THREE.Mesh(new THREE.CylinderGeometry(8.2, 6.4, 1.2, 9), wood(0x8d7256));
+  strata1.position.y = -2.2;
+  island.add(strata1);
+  const strata2 = new THREE.Mesh(new THREE.CylinderGeometry(5.6, 3.6, 1.4, 9), wood(0x77604a));
+  strata2.position.y = -4.6;
+  island.add(strata2);
+  for (let i = 0; i < 4; i += 1) {
+    const root = new THREE.Mesh(new THREE.ConeGeometry(0.5 + rnd() * 0.4, 2.4 + rnd() * 1.6, 5), wood(0x6e5844));
+    const ra = rnd() * Math.PI * 2;
+    root.position.set(Math.sin(ra) * (2 + rnd() * 3), -6.6 - rnd() * 0.8, Math.cos(ra) * (2 + rnd() * 3));
+    root.rotation.x = Math.PI;
+    island.add(root);
+  }
+  const grassRim = new THREE.Mesh(new THREE.TorusGeometry(10.3, 0.4, 8, 28), toon(0xb5c99a));
+  grassRim.rotation.x = Math.PI / 2;
+  grassRim.scale.z = 0.5;
+  grassRim.position.y = deckTop + 0.12;
+  island.add(grassRim);
   for (let i = 0; i < 3; i += 1) {
     const bump = new THREE.Mesh(new THREE.DodecahedronGeometry(1.1 + rnd() * 0.8, 0), wood(0x7d6450));
     const a = rnd() * Math.PI * 2;
@@ -297,16 +346,17 @@ function initScene(data, container) {
     const width = clamp(perRow * 0.4 + 0.8, 2.6, 5.6);
     const height = rows === 2 ? 3.15 : 1.95;
     const depth = 1.0;
-    const frame = wood(0x8a5f3c);
+    const frame = wood(0x8a6a48);
+    const shell = toon(0xe9dcc3);
     const parts = [
-      [-width / 2, height / 2, 0, 0.18, height, depth],
-      [width / 2, height / 2, 0, 0.18, height, depth],
-      [0, 0.07, 0, width, 0.14, depth],
-      [0, height - 0.07, 0, width, 0.14, depth],
+      [-width / 2, height / 2, 0, 0.18, height, depth, shell],
+      [width / 2, height / 2, 0, 0.18, height, depth, shell],
+      [0, 0.07, 0, width, 0.14, depth, frame],
+      [0, height - 0.07, 0, width, 0.14, depth, shell],
     ];
-    if (rows === 2) parts.push([0, height / 2, 0, width, 0.12, depth]);
-    for (const [x, y, z, w, h, d] of parts) {
-      const board = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), frame);
+    if (rows === 2) parts.push([0, height / 2, 0, width, 0.12, depth, frame]);
+    for (const [x, y, z, w, h, d, mat] of parts) {
+      const board = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
       board.position.set(x, y, z);
       board.castShadow = true;
       board.receiveShadow = true;
@@ -314,17 +364,27 @@ function initScene(data, container) {
       group.add(board);
       pickables.push(board);
     }
-    const back = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.1), wood(0x6e4a2f));
+    const back = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.1), shell);
     back.position.set(0, height / 2, -depth / 2 + 0.05);
     back.userData = { type: 'shelf', name: cat.name, url: cat.url, count: cat.posts.length };
     group.add(back);
     pickables.push(back);
+    const innerBack = new THREE.Mesh(new THREE.PlaneGeometry(width - 0.2, height - 0.3), frame);
+    innerBack.position.set(0, height / 2, -depth / 2 + 0.12);
+    group.add(innerBack);
     const glow = new THREE.Mesh(
       new THREE.BoxGeometry(width - 0.36, 0.05, 0.05),
       toon(0x3a2a1a, { emissive: 0xffc98a, emissiveIntensity: 1.1 }),
     );
     glow.position.set(0, height - 0.18, 0.3);
     group.add(glow);
+    const crown = new THREE.Mesh(new THREE.BoxGeometry(width + 0.34, 0.16, depth + 0.2), toon(0xe8d9bd));
+    crown.position.set(0, height + 0.1, 0);
+    crown.castShadow = true;
+    group.add(crown);
+    const crest = new THREE.Mesh(new THREE.CircleGeometry(0.17, 16), toon(cat.color));
+    crest.position.set(0, height + 0.2, depth / 2 + 0.11);
+    group.add(crest);
     group.userData.anchorY = height + 0.9;
     group.userData.angle = angle;
 
@@ -676,7 +736,8 @@ function initScene(data, container) {
     );
     pages.position.y = 0.045;
     flyer.add(cover, pages);
-    flyer.userData = { radius: 4.6 + i * 1.1, speed: 0.1 + i * 0.035, height: 5.6 + i * 0.9, phase: i * 2.1 };
+    flyer.userData = { radius: 5.2 + i * 1.0, speed: 0.1 + i * 0.035, height: 6.6 + i * 0.8, phase: i * 2.1 };
+    flyer.scale.setScalar(0.85);
     scene.add(flyer);
     flyers.push(flyer);
   }
@@ -707,21 +768,22 @@ function initScene(data, container) {
 
   // 毛绒云
   const clouds = [];
-  for (let i = 0; i < 3; i += 1) {
+  for (let i = 0; i < 4; i += 1) {
     const cloud = new THREE.Group();
     const puffs = 3 + Math.floor(rnd() * 2);
     for (let p = 0; p < puffs; p += 1) {
       const puff = new THREE.Mesh(
         fluffify(new THREE.SphereGeometry(0.9 + rnd() * 0.7, 10, 8), 0.18, rnd),
-        toon(0xfff8ef, { transparent: true, opacity: 0.95 }),
+        toon(0xfff8ef, { transparent: true, opacity: 0.85 }),
       );
       puff.position.set((p - puffs / 2) * 1.1, (rnd() - 0.5) * 0.5, (rnd() - 0.5) * 0.8);
       cloud.add(puff);
     }
+    cloud.scale.set(1.5, 0.6, 1.2);
     cloud.userData = {
       angle: rnd() * Math.PI * 2,
-      radius: 12.5 + rnd() * 2.5,
-      height: -2.5 - rnd() * 2.5,
+      radius: 10 + rnd() * 4,
+      height: -5 - rnd() * 2,
       speed: 0.03 + rnd() * 0.03,
     };
     scene.add(cloud);
@@ -739,6 +801,11 @@ function initScene(data, container) {
     const end = new THREE.Vector3(b.position.x, deckTop + hb + 0.15, b.position.z);
     const mid = start.clone().add(end).multiplyScalar(0.5);
     mid.y -= 0.9;
+    const wire = new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(start, mid, end), 12, 0.015, 4),
+      toon(0x6b5644),
+    );
+    island.add(wire);
     for (let t = 1; t <= 5; t += 1) {
       const u = t / 6;
       const p = new THREE.Vector3()
@@ -767,11 +834,55 @@ function initScene(data, container) {
     island.add(cushion);
   }
 
+  // 小道具：书堆、盆栽、石径
+  for (const [px, pz] of [
+    [3.4, 0.9],
+    [-3.2, 2.6],
+  ]) {
+    const pile = new THREE.Group();
+    for (let b = 0; b < 3; b += 1) {
+      const tome = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9 - b * 0.12, 0.16, 0.66 - b * 0.08),
+        toon(bookColor(categories[b % categories.length].color, rnd)),
+      );
+      tome.position.y = 0.08 + b * 0.17;
+      tome.rotation.y = (rnd() - 0.5) * 0.5;
+      tome.castShadow = true;
+      pile.add(tome);
+    }
+    pile.position.set(px, deckTop + 0.02, pz);
+    island.add(pile);
+  }
+  for (const [px, pz] of [
+    [5.2, -4.6],
+    [-5.4, 4.2],
+  ]) {
+    const plant = new THREE.Group();
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.26, 0.5, 10), toon(0xc97b5f));
+    pot.position.y = 0.25;
+    plant.add(pot);
+    const leaf = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.5, 10, 8), 0.2, rnd), toon(0x9db889));
+    leaf.position.y = 0.85;
+    leaf.castShadow = true;
+    plant.add(leaf);
+    plant.position.set(px, deckTop, pz);
+    island.add(plant);
+  }
+  for (let s = 0; s < 4; s += 1) {
+    const stone = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5 - s * 0.04, 0.55 - s * 0.04, 0.1, 8),
+      toon(0xe6d3b3),
+    );
+    const t = s / 3;
+    stone.position.set(4.6 - t * 1.6, deckTop + 0.06, 5.4 - t * 2.2);
+    stone.rotation.y = rnd() * Math.PI;
+    stone.receiveShadow = true;
+    island.add(stone);
+  }
+
   // 轨道控制（手写球坐标）
-  const aspect = container.clientWidth / Math.max(container.clientHeight, 1);
-  const portrait = aspect < 0.95;
-  const startRadius = portrait ? 38 : 26.5;
-  const startPhi = portrait ? 0.95 : 1.0;
+  const startRadius = portrait ? 46 : 34;
+  const startPhi = portrait ? 0.9 : 0.98;
   const orbit = {
     theta: 0.65,
     phi: startPhi,
