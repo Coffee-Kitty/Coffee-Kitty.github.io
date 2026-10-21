@@ -33,8 +33,8 @@ function bookColor(hex, rnd) {
   color.getHSL(hsl);
   color.setHSL(
     (hsl.h + (rnd() - 0.5) * 0.035 + 1) % 1,
-    clamp(hsl.s + (rnd() - 0.5) * 0.2, 0.3, 0.62),
-    clamp(hsl.l + (rnd() - 0.5) * 0.2, 0.46, 0.74),
+    clamp(hsl.s + (rnd() - 0.5) * 0.2, 0.42, 0.75),
+    clamp(hsl.l + (rnd() - 0.5) * 0.2, 0.42, 0.68),
   );
   return color;
 }
@@ -85,12 +85,12 @@ function deckTexture() {
   canvas.width = 256;
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ecd9b8';
+  ctx.fillStyle = '#c89a62';
   ctx.fillRect(0, 0, 256, 256);
   for (let x = 0; x < 256; x += 32) {
-    ctx.fillStyle = x % 64 === 0 ? '#e5cfa9' : '#f1e0c2';
+    ctx.fillStyle = x % 64 === 0 ? '#bd8f55' : '#d2a670';
     ctx.fillRect(x, 0, 30, 256);
-    ctx.fillStyle = 'rgba(150, 118, 80, 0.18)';
+    ctx.fillStyle = 'rgba(90, 60, 30, 0.35)';
     ctx.fillRect(x + 30, 0, 2, 256);
   }
   for (let i = 0; i < 240; i += 1) {
@@ -109,19 +109,19 @@ function rugTexture() {
   canvas.width = 256;
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#f0e2c8';
+  ctx.fillStyle = '#f4e6cd';
   ctx.fillRect(0, 0, 256, 256);
-  ctx.strokeStyle = '#c97b5f';
-  ctx.lineWidth = 14;
+  ctx.strokeStyle = '#c26a4a';
+  ctx.lineWidth = 16;
   ctx.beginPath();
   ctx.arc(128, 128, 116, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.strokeStyle = '#d9a08b';
-  ctx.lineWidth = 5;
+  ctx.strokeStyle = '#d9906f';
+  ctx.lineWidth = 6;
   ctx.beginPath();
-  ctx.arc(128, 128, 98, 0, Math.PI * 2);
+  ctx.arc(128, 128, 96, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.fillStyle = 'rgba(154, 176, 122, 0.45)';
+  ctx.fillStyle = 'rgba(134, 160, 107, 0.6)';
   for (let i = 0; i < 36; i += 1) {
     const a = Math.random() * Math.PI * 2;
     const r = Math.random() * 78;
@@ -129,7 +129,7 @@ function rugTexture() {
     ctx.arc(128 + Math.cos(a) * r, 128 + Math.sin(a) * r, 3, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.strokeStyle = 'rgba(201, 123, 95, 0.35)';
+  ctx.strokeStyle = 'rgba(194, 106, 74, 0.4)';
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(128, 128, 60, 0, Math.PI * 2);
@@ -160,6 +160,27 @@ function fluffify(geometry, amount, rnd) {
   }
   geometry.computeVertexNormals();
   return geometry;
+}
+
+let contactTex = null;
+function contactShadow(w, d, opacity = 0.32) {
+  if (!contactTex) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(64, 64, 6, 64, 64, 62);
+    g.addColorStop(0, 'rgba(70, 45, 25, 0.85)');
+    g.addColorStop(1, 'rgba(70, 45, 25, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    contactTex = new THREE.CanvasTexture(c);
+  }
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d),
+    new THREE.MeshBasicMaterial({ map: contactTex, transparent: true, opacity, depthWrite: false }),
+  );
+  mesh.rotation.x = -Math.PI / 2;
+  return mesh;
 }
 
 function furPoints(radius, count, color, rnd) {
@@ -222,6 +243,8 @@ function initScene(data, container) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, small ? 1.5 : 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
   container.appendChild(renderer.domElement);
   renderer.domElement.setAttribute('aria-label', '浮空图书馆 3D 场景：拖动旋转，滚轮缩放，点击书架或书脊跳转');
 
@@ -232,13 +255,15 @@ function initScene(data, container) {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
-  const target = new THREE.Vector3(0, portrait ? 2.6 : 0.2, 0);
+  const target = new THREE.Vector3(0, portrait ? 2.4 : 0.5, 0);
 
-  scene.add(new THREE.HemisphereLight(0xfff3e0, 0xb08a63, 0.95));
-  const key = new THREE.DirectionalLight(0xffdfae, 2.1);
+  scene.add(new THREE.HemisphereLight(0xfff3e0, 0xa97e55, 1.05));
+  const key = new THREE.DirectionalLight(0xffd9a0, 2.6);
   key.position.set(9, 15, 7);
   key.castShadow = true;
   key.shadow.mapSize.set(small ? 512 : 1024, small ? 512 : 1024);
+  key.shadow.radius = 6;
+  key.shadow.blurSamples = 12;
   key.shadow.camera.left = -15;
   key.shadow.camera.right = 15;
   key.shadow.camera.top = 15;
@@ -248,7 +273,7 @@ function initScene(data, container) {
   key.shadow.bias = -0.0006;
   key.shadow.normalBias = 0.02;
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0xa9c4de, 0.7);
+  const rim = new THREE.DirectionalLight(0xa9c4de, 0.8);
   rim.position.set(-9, 7, -9);
   scene.add(rim);
 
@@ -270,7 +295,7 @@ function initScene(data, container) {
   sun.position.set(12, 13, -16);
   sun.scale.set(26, 26, 1);
   scene.add(sun);
-  scene.fog = new THREE.Fog(0xf7e0d2, 36, 68);
+  scene.fog = new THREE.Fog(0xf6d7bd, 34, 64);
 
   const island = new THREE.Group();
   scene.add(island);
@@ -300,7 +325,7 @@ function initScene(data, container) {
     root.rotation.x = Math.PI;
     island.add(root);
   }
-  const grassRim = new THREE.Mesh(new THREE.TorusGeometry(10.3, 0.4, 8, 28), toon(0xb5c99a));
+  const grassRim = new THREE.Mesh(new THREE.TorusGeometry(10.3, 0.4, 8, 28), toon(0x8fae7e));
   grassRim.rotation.x = Math.PI / 2;
   grassRim.scale.z = 0.5;
   grassRim.position.y = deckTop + 0.12;
@@ -378,7 +403,7 @@ function initScene(data, container) {
     );
     glow.position.set(0, height - 0.18, 0.3);
     group.add(glow);
-    const crown = new THREE.Mesh(new THREE.BoxGeometry(width + 0.34, 0.16, depth + 0.2), toon(0xe8d9bd));
+    const crown = new THREE.Mesh(new THREE.BoxGeometry(width + 0.34, 0.16, depth + 0.2), toon(0x8a6a48));
     crown.position.set(0, height + 0.1, 0);
     crown.castShadow = true;
     group.add(crown);
@@ -436,6 +461,9 @@ function initScene(data, container) {
 
     island.add(group);
     shelves.push(group);
+    const shelfShadow = contactShadow(width + 1, depth + 1);
+    shelfShadow.position.set(group.position.x, deckTop + 0.02, group.position.z);
+    island.add(shelfShadow);
   });
 
   // 书架分类标签（HTML 覆盖层，始终清晰可读）
@@ -600,61 +628,78 @@ function initScene(data, container) {
   desk.add(lampLight);
 
   const cat = new THREE.Group();
-  const fur = toon(0x4a4441);
-  const body = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.34, 12, 10), 0.1, rnd), fur);
-  body.scale.set(1, 1.18, 0.92);
-  body.position.y = 0.36;
+  const fur = toon(0xc9965a);
+  const furLight = toon(0xf6e7c6);
+  const furDark = toon(0x8a6a3f);
+  const body = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.36, 14, 12), 0.09, rnd), fur);
+  body.scale.set(1.05, 1.15, 0.95);
+  body.position.y = 0.38;
   body.castShadow = true;
   cat.add(body);
-  const bodyFur = furPoints(0.35, 110, 0x6b6560, rnd);
+  const belly = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.24, 12, 10), 0.1, rnd), furLight);
+  belly.scale.set(0.9, 1.1, 0.6);
+  belly.position.set(0, 0.34, 0.2);
+  cat.add(belly);
+  const bodyFur = furPoints(0.37, 130, 0xe0b877, rnd);
   bodyFur.scale.copy(body.scale);
-  bodyFur.position.y = 0.36;
+  bodyFur.position.y = 0.38;
   cat.add(bodyFur);
-  const head = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.3, 12, 10), 0.12, rnd), fur);
-  head.position.set(0, 0.88, 0.06);
+  const head = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.34, 14, 12), 0.1, rnd), fur);
+  head.scale.set(1.12, 1, 1);
+  head.position.set(0, 0.95, 0.06);
   head.castShadow = true;
   cat.add(head);
-  const headFur = furPoints(0.31, 90, 0x6b6560, rnd);
-  headFur.position.set(0, 0.88, 0.06);
+  const muzzle = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.16, 12, 10), 0.1, rnd), furLight);
+  muzzle.scale.set(1.2, 0.8, 0.8);
+  muzzle.position.set(0, 0.86, 0.3);
+  cat.add(muzzle);
+  const headFur = furPoints(0.35, 110, 0xe0b877, rnd);
+  headFur.scale.set(1.12, 1, 1);
+  headFur.position.set(0, 0.95, 0.06);
   cat.add(headFur);
   for (const side of [-1, 1]) {
-    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.24, 4), fur);
-    ear.position.set(side * 0.15, 1.12, 0.05);
-    ear.rotation.z = side * -0.18;
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.24, 4), fur);
+    ear.position.set(side * 0.18, 1.24, 0.02);
+    ear.rotation.z = side * -0.22;
     cat.add(ear);
-    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.12, 4), toon(0xf2b8c6));
-    inner.position.set(side * 0.15, 1.1, 0.12);
-    inner.rotation.z = side * -0.18;
+    const earTip = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.09, 4), furDark);
+    earTip.position.set(side * 0.19, 1.33, 0.02);
+    earTip.rotation.z = side * -0.22;
+    cat.add(earTip);
+    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.1, 4), toon(0xe8a1a1));
+    inner.position.set(side * 0.18, 1.22, 0.09);
+    inner.rotation.z = side * -0.22;
     cat.add(inner);
-    const eye = new THREE.Mesh(
-      new THREE.SphereGeometry(0.055, 10, 8),
-      toon(0x2b2b28, { emissive: 0xffe9b8, emissiveIntensity: 0.35 }),
-    );
-    eye.position.set(side * 0.11, 0.9, 0.29);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), toon(0x9db862));
+    eye.position.set(side * 0.13, 0.98, 0.27);
     cat.add(eye);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), toon(0x1d1a16));
+    pupil.position.set(side * 0.13, 0.98, 0.34);
+    cat.add(pupil);
     const shine = new THREE.Mesh(
-      new THREE.SphereGeometry(0.018, 6, 6),
-      toon(0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.8 }),
+      new THREE.SphereGeometry(0.016, 6, 6),
+      toon(0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.9 }),
     );
-    shine.position.set(side * 0.09, 0.93, 0.33);
+    shine.position.set(side * 0.11, 1.01, 0.36);
     cat.add(shine);
-    const blush = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), toon(0xf2b8c6));
-    blush.scale.set(1, 0.6, 0.4);
-    blush.position.set(side * 0.2, 0.8, 0.24);
-    cat.add(blush);
   }
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 6), toon(0xd98a8a));
+  nose.scale.set(1.2, 0.8, 0.8);
+  nose.position.set(0, 0.9, 0.42);
+  cat.add(nose);
   const chest = new THREE.Mesh(
     fluffify(new THREE.SphereGeometry(0.17, 10, 8), 0.12, rnd),
-    toon(0xf3ead9),
+    furLight,
   );
-  chest.position.set(0, 0.34, 0.24);
-  chest.scale.set(1, 1.2, 0.7);
+  chest.position.set(0, 0.6, 0.2);
+  chest.scale.set(1.2, 0.8, 0.7);
   cat.add(chest);
   const patch = new THREE.Mesh(
     fluffify(new THREE.SphereGeometry(0.13, 8, 6), 0.15, rnd),
-    toon(0xb85c38),
+    furDark,
   );
-  patch.position.set(0.16, 0.9, -0.02);
+  patch.position.set(0, 0.55, -0.3);
+  patch.scale.set(1.5, 0.7, 1);
   cat.add(patch);
   const collar = new THREE.Mesh(
     new THREE.TorusGeometry(0.15, 0.035, 6, 14),
@@ -671,13 +716,20 @@ function initScene(data, container) {
   ]);
   const tailPivot = new THREE.Group();
   tailPivot.position.set(0, 0.16, -0.28);
-  const tail = new THREE.Mesh(new THREE.TubeGeometry(tailCurve, 14, 0.06, 6), fur);
+  const tail = new THREE.Mesh(new THREE.TubeGeometry(tailCurve, 14, 0.09, 6), fur);
   tailPivot.add(tail);
+  const tailTip = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), furDark);
+  tailTip.position.set(-0.08, 0.8, -0.3);
+  tailPivot.add(tailTip);
   cat.add(tailPivot);
   cat.position.set(0.85, 1.03, -0.25);
   cat.rotation.y = 0.95;
+  cat.scale.setScalar(1.5);
   desk.add(cat);
   island.add(desk);
+  const deskShadow = contactShadow(3.6, 2.4, 0.3);
+  deskShadow.position.set(0, 0.03, 0);
+  desk.add(deskShadow);
   cat.traverse((obj) => {
     if (obj.isMesh) {
       obj.userData = { type: 'cat' };
@@ -687,7 +739,7 @@ function initScene(data, container) {
 
   // 地毯上蝙睡的小奶猫
   const kitten = new THREE.Group();
-  const kfur = toon(0xf0dcc3);
+  const kfur = toon(0xe3bd85);
   const kbody = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.42, 12, 10), 0.1, rnd), kfur);
   kbody.scale.set(1.15, 0.72, 1);
   kbody.castShadow = true;
@@ -701,20 +753,24 @@ function initScene(data, container) {
     kear.rotation.z = side * -0.2;
     kitten.add(kear);
   }
-  const kpatch = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.14, 8, 6), 0.15, rnd), toon(0xd98e5f));
+  const kpatch = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.14, 8, 6), 0.15, rnd), toon(0xa97e4f));
   kpatch.position.set(-0.18, 0.2, -0.1);
   kitten.add(kpatch);
-  const ktail = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.07, 6, 14, Math.PI * 1.15), kfur);
+  const ktail = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.07, 6, 14, Math.PI * 1.15), toon(0xd9a866));
   ktail.rotation.x = Math.PI / 2;
   ktail.rotation.z = 0.5;
   ktail.position.set(-0.1, -0.12, 0.12);
   kitten.add(ktail);
-  const kfurCloud = furPoints(0.44, 90, 0xf7ead8, rnd);
+  const kfurCloud = furPoints(0.44, 90, 0xf3ddb0, rnd);
   kfurCloud.scale.set(1.15, 0.75, 1);
   kitten.add(kfurCloud);
   kitten.position.set(-1.5, deckTop + 0.42, 1.3);
   kitten.rotation.y = 0.9;
+  kitten.scale.setScalar(1.25);
   island.add(kitten);
+  const kittenShadow = contactShadow(1.8, 1.4, 0.3);
+  kittenShadow.position.set(-1.5, deckTop + 0.02, 1.3);
+  island.add(kittenShadow);
   kitten.traverse((obj) => {
     if (obj.isMesh) {
       obj.userData = { type: 'cat' };
@@ -832,6 +888,9 @@ function initScene(data, container) {
     cushion.position.set(cx, deckTop + 0.3, cz);
     cushion.castShadow = true;
     island.add(cushion);
+    const cushionShadow = contactShadow(1.4, 1.4, 0.25);
+    cushionShadow.position.set(cx, deckTop + 0.02, cz);
+    island.add(cushionShadow);
   }
 
   // 小道具：书堆、盆栽、石径
@@ -881,8 +940,8 @@ function initScene(data, container) {
   }
 
   // 轨道控制（手写球坐标）
-  const startRadius = portrait ? 46 : 34;
-  const startPhi = portrait ? 0.9 : 0.98;
+  const startRadius = portrait ? 42 : 29;
+  const startPhi = portrait ? 0.92 : 0.95;
   const orbit = {
     theta: 0.65,
     phi: startPhi,
