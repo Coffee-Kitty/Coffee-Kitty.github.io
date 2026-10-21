@@ -33,8 +33,8 @@ function bookColor(hex, rnd) {
   color.getHSL(hsl);
   color.setHSL(
     (hsl.h + (rnd() - 0.5) * 0.035 + 1) % 1,
-    clamp(hsl.s + (rnd() - 0.5) * 0.2, 0.28, 0.82),
-    clamp(hsl.l + (rnd() - 0.5) * 0.24, 0.32, 0.66),
+    clamp(hsl.s + (rnd() - 0.5) * 0.2, 0.3, 0.62),
+    clamp(hsl.l + (rnd() - 0.5) * 0.2, 0.46, 0.74),
   );
   return color;
 }
@@ -129,6 +129,47 @@ function rugTexture() {
   return texture;
 }
 
+let toonGradient = null;
+function toon(color, extra = {}) {
+  if (!toonGradient) {
+    toonGradient = new THREE.DataTexture(new Uint8Array([110, 170, 225, 255]), 4, 1, THREE.RedFormat);
+    toonGradient.minFilter = THREE.NearestFilter;
+    toonGradient.magFilter = THREE.NearestFilter;
+    toonGradient.needsUpdate = true;
+  }
+  return new THREE.MeshToonMaterial({ color, gradientMap: toonGradient, ...extra });
+}
+
+function fluffify(geometry, amount, rnd) {
+  const pos = geometry.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i += 1) {
+    v.fromBufferAttribute(pos, i);
+    v.multiplyScalar(1 + (rnd() - 0.5) * amount);
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function furPoints(radius, count, color, rnd) {
+  const arr = new Float32Array(count * 3);
+  for (let i = 0; i < count; i += 1) {
+    const theta = rnd() * Math.PI * 2;
+    const phi = Math.acos(2 * rnd() - 1);
+    const r = radius * (1 + rnd() * 0.16);
+    arr[i * 3] = Math.sin(phi) * Math.cos(theta) * r;
+    arr[i * 3 + 1] = Math.cos(phi) * r;
+    arr[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * r;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+  return new THREE.Points(
+    geo,
+    new THREE.PointsMaterial({ color, size: 0.05, transparent: true, opacity: 0.8, depthWrite: false }),
+  );
+}
+
 async function loadData() {
   const res = await fetch(DATA_URL, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`site-graph.json HTTP ${res.status}`);
@@ -203,13 +244,12 @@ function initScene(data, container) {
   const island = new THREE.Group();
   scene.add(island);
 
-  const wood = (color) =>
-    new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0, flatShading: true });
+  const wood = (color) => toon(color);
 
   const deckTop = 0.55;
   const deck = new THREE.Mesh(
     new THREE.CylinderGeometry(10.6, 9.8, 1.1, 10),
-    new THREE.MeshStandardMaterial({ map: deckTexture(), roughness: 0.9, metalness: 0, flatShading: true }),
+    toon(0xffffff, { map: deckTexture() }),
   );
   deck.receiveShadow = true;
   island.add(deck);
@@ -224,14 +264,14 @@ function initScene(data, container) {
   }
   const rug = new THREE.Mesh(
     new THREE.CylinderGeometry(3.5, 3.5, 0.1, 24),
-    new THREE.MeshStandardMaterial({ color: 0xa3543f, roughness: 1, flatShading: true }),
+    wood(0xa3543f),
   );
   rug.position.y = deckTop + 0.05;
   rug.receiveShadow = true;
   island.add(rug);
   const rugTop = new THREE.Mesh(
     new THREE.CircleGeometry(3.48, 32),
-    new THREE.MeshStandardMaterial({ map: rugTexture(), roughness: 1 }),
+    toon(0xffffff, { map: rugTexture() }),
   );
   rugTop.rotation.x = -Math.PI / 2;
   rugTop.position.y = deckTop + 0.11;
@@ -281,7 +321,7 @@ function initScene(data, container) {
     pickables.push(back);
     const glow = new THREE.Mesh(
       new THREE.BoxGeometry(width - 0.36, 0.05, 0.05),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a1a, emissive: 0xffc98a, emissiveIntensity: 1.1, roughness: 0.6 }),
+      toon(0x3a2a1a, { emissive: 0xffc98a, emissiveIntensity: 1.1 }),
     );
     glow.position.set(0, height - 0.18, 0.3);
     group.add(glow);
@@ -295,13 +335,7 @@ function initScene(data, container) {
         const bh = 1.02 + rnd() * 0.32;
         const book = new THREE.Mesh(
           new THREE.BoxGeometry(bw, bh, 0.72 + rnd() * 0.14),
-          new THREE.MeshStandardMaterial({
-            color: bookColor(cat.color, rnd),
-            map: spineTex,
-            roughness: 0.75,
-            metalness: 0,
-            flatShading: true,
-          }),
+          toon(bookColor(cat.color, rnd), { map: spineTex }),
         );
         const tilt = rnd() < 0.14 ? (rnd() - 0.5) * 0.22 : 0;
         book.rotation.z = tilt;
@@ -318,7 +352,7 @@ function initScene(data, container) {
     if (shown.length === 0) {
       const sign = new THREE.Mesh(
         new THREE.PlaneGeometry(1.5, 0.75),
-        new THREE.MeshStandardMaterial({ map: textTexture('待写'), roughness: 0.9 }),
+        toon(0xffffff, { map: textTexture('待写') }),
       );
       sign.position.set(0, 0.62, 0.2);
       sign.rotation.x = -0.18;
@@ -330,7 +364,7 @@ function initScene(data, container) {
       if (cat.posts.length > MAX_BOOKS_PER_SHELF) {
         const more = new THREE.Mesh(
           new THREE.BoxGeometry(0.42, 1.3, 0.86),
-          new THREE.MeshStandardMaterial({ map: textTexture(`+${cat.posts.length - MAX_BOOKS_PER_SHELF}`, { font: 60 }), roughness: 0.8 }),
+          toon(0xffffff, { map: textTexture(`+${cat.posts.length - MAX_BOOKS_PER_SHELF}`, { font: 60 }) }),
         );
         more.position.set(width / 2 - 0.5, 0.14 + 0.72, 0.06);
         more.userData = { type: 'shelf', name: cat.name, url: cat.url, count: cat.posts.length };
@@ -482,7 +516,7 @@ function initScene(data, container) {
   for (const side of [-1, 1]) {
     const page = new THREE.Mesh(
       new THREE.BoxGeometry(0.62, 0.035, 0.8),
-      new THREE.MeshStandardMaterial({ color: 0xf6efdf, roughness: 0.95 }),
+      toon(0xf6efdf),
     );
     page.position.set(side * 0.3, 1.06, 0.1);
     page.rotation.z = side * -0.22;
@@ -493,12 +527,10 @@ function initScene(data, container) {
   desk.add(lampPole);
   const lampShade = new THREE.Mesh(
     new THREE.ConeGeometry(0.36, 0.42, 12, 1, true),
-    new THREE.MeshStandardMaterial({
-      color: 0xcaa26a,
+    toon(0xcaa26a, {
       emissive: 0xffd9a0,
       emissiveIntensity: 0.85,
       side: THREE.DoubleSide,
-      roughness: 0.6,
     }),
   );
   lampShade.position.set(-0.95, 1.92, -0.4);
@@ -508,44 +540,65 @@ function initScene(data, container) {
   desk.add(lampLight);
 
   const cat = new THREE.Group();
-  const fur = new THREE.MeshStandardMaterial({ color: 0x4a4441, roughness: 0.95, flatShading: true });
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10), fur);
+  const fur = toon(0x4a4441);
+  const body = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.34, 12, 10), 0.1, rnd), fur);
   body.scale.set(1, 1.18, 0.92);
   body.position.y = 0.36;
   body.castShadow = true;
   cat.add(body);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 10), fur);
-  head.position.set(0, 0.82, 0.06);
+  const bodyFur = furPoints(0.35, 110, 0x6b6560, rnd);
+  bodyFur.scale.copy(body.scale);
+  bodyFur.position.y = 0.36;
+  cat.add(bodyFur);
+  const head = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.3, 12, 10), 0.12, rnd), fur);
+  head.position.set(0, 0.88, 0.06);
   head.castShadow = true;
   cat.add(head);
+  const headFur = furPoints(0.31, 90, 0x6b6560, rnd);
+  headFur.position.set(0, 0.88, 0.06);
+  cat.add(headFur);
   for (const side of [-1, 1]) {
-    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.2, 4), fur);
-    ear.position.set(side * 0.13, 1.02, 0.05);
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.24, 4), fur);
+    ear.position.set(side * 0.15, 1.12, 0.05);
     ear.rotation.z = side * -0.18;
     cat.add(ear);
+    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.12, 4), toon(0xf2b8c6));
+    inner.position.set(side * 0.15, 1.1, 0.12);
+    inner.rotation.z = side * -0.18;
+    cat.add(inner);
     const eye = new THREE.Mesh(
-      new THREE.SphereGeometry(0.028, 6, 6),
-      new THREE.MeshStandardMaterial({ color: 0xf5e6c8, emissive: 0xffe9b8, emissiveIntensity: 0.6 }),
+      new THREE.SphereGeometry(0.055, 10, 8),
+      toon(0x2b2b28, { emissive: 0xffe9b8, emissiveIntensity: 0.35 }),
     );
-    eye.position.set(side * 0.09, 0.85, 0.27);
+    eye.position.set(side * 0.11, 0.9, 0.29);
     cat.add(eye);
+    const shine = new THREE.Mesh(
+      new THREE.SphereGeometry(0.018, 6, 6),
+      toon(0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.8 }),
+    );
+    shine.position.set(side * 0.09, 0.93, 0.33);
+    cat.add(shine);
+    const blush = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), toon(0xf2b8c6));
+    blush.scale.set(1, 0.6, 0.4);
+    blush.position.set(side * 0.2, 0.8, 0.24);
+    cat.add(blush);
   }
   const chest = new THREE.Mesh(
-    new THREE.SphereGeometry(0.17, 10, 8),
-    new THREE.MeshStandardMaterial({ color: 0xf3ead9, roughness: 0.95, flatShading: true }),
+    fluffify(new THREE.SphereGeometry(0.17, 10, 8), 0.12, rnd),
+    toon(0xf3ead9),
   );
   chest.position.set(0, 0.34, 0.24);
   chest.scale.set(1, 1.2, 0.7);
   cat.add(chest);
   const patch = new THREE.Mesh(
-    new THREE.SphereGeometry(0.13, 8, 6),
-    new THREE.MeshStandardMaterial({ color: 0xb85c38, roughness: 0.95, flatShading: true }),
+    fluffify(new THREE.SphereGeometry(0.13, 8, 6), 0.15, rnd),
+    toon(0xb85c38),
   );
   patch.position.set(0.16, 0.9, -0.02);
   cat.add(patch);
   const collar = new THREE.Mesh(
     new THREE.TorusGeometry(0.15, 0.035, 6, 14),
-    new THREE.MeshStandardMaterial({ color: 0x2f6f68, roughness: 0.7 }),
+    toon(0x2f6f68),
   );
   collar.position.set(0, 0.62, 0.02);
   collar.rotation.x = Math.PI / 2.2;
@@ -562,10 +615,47 @@ function initScene(data, container) {
   tailPivot.add(tail);
   cat.add(tailPivot);
   cat.position.set(0.85, 1.03, -0.25);
-  cat.rotation.y = -0.7;
+  cat.rotation.y = 0.95;
   desk.add(cat);
   island.add(desk);
   cat.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.userData = { type: 'cat' };
+      pickables.push(obj);
+    }
+  });
+
+  // 地毯上蝙睡的小奶猫
+  const kitten = new THREE.Group();
+  const kfur = toon(0xf0dcc3);
+  const kbody = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.42, 12, 10), 0.1, rnd), kfur);
+  kbody.scale.set(1.15, 0.72, 1);
+  kbody.castShadow = true;
+  kitten.add(kbody);
+  const khead = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.24, 12, 10), 0.12, rnd), kfur);
+  khead.position.set(0.3, 0.16, 0.18);
+  kitten.add(khead);
+  for (const side of [-1, 1]) {
+    const kear = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.16, 4), kfur);
+    kear.position.set(0.3 + side * 0.12, 0.36, 0.16);
+    kear.rotation.z = side * -0.2;
+    kitten.add(kear);
+  }
+  const kpatch = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.14, 8, 6), 0.15, rnd), toon(0xd98e5f));
+  kpatch.position.set(-0.18, 0.2, -0.1);
+  kitten.add(kpatch);
+  const ktail = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.07, 6, 14, Math.PI * 1.15), kfur);
+  ktail.rotation.x = Math.PI / 2;
+  ktail.rotation.z = 0.5;
+  ktail.position.set(-0.1, -0.12, 0.12);
+  kitten.add(ktail);
+  const kfurCloud = furPoints(0.44, 90, 0xf7ead8, rnd);
+  kfurCloud.scale.set(1.15, 0.75, 1);
+  kitten.add(kfurCloud);
+  kitten.position.set(-1.5, deckTop + 0.42, 1.3);
+  kitten.rotation.y = 0.9;
+  island.add(kitten);
+  kitten.traverse((obj) => {
     if (obj.isMesh) {
       obj.userData = { type: 'cat' };
       pickables.push(obj);
@@ -578,11 +668,11 @@ function initScene(data, container) {
     const flyer = new THREE.Group();
     const cover = new THREE.Mesh(
       new THREE.BoxGeometry(0.68, 0.06, 0.88),
-      new THREE.MeshStandardMaterial({ color: bookColor(categories[i % categories.length].color, rnd), roughness: 0.7, flatShading: true }),
+      toon(bookColor(categories[i % categories.length].color, rnd)),
     );
     const pages = new THREE.Mesh(
       new THREE.BoxGeometry(0.6, 0.045, 0.78),
-      new THREE.MeshStandardMaterial({ color: 0xf8f2e4, roughness: 0.95 }),
+      toon(0xf8f2e4),
     );
     pages.position.y = 0.045;
     flyer.add(cover, pages);
@@ -613,6 +703,68 @@ function initScene(data, container) {
     chunk.userData = { angle: a, radius: 3.5 + rnd() * 3, height: -5.2 - rnd() * 1.6, speed: 0.05 + rnd() * 0.05 };
     scene.add(chunk);
     chunks.push(chunk);
+  }
+
+  // 毛绒云
+  const clouds = [];
+  for (let i = 0; i < 3; i += 1) {
+    const cloud = new THREE.Group();
+    const puffs = 3 + Math.floor(rnd() * 2);
+    for (let p = 0; p < puffs; p += 1) {
+      const puff = new THREE.Mesh(
+        fluffify(new THREE.SphereGeometry(0.9 + rnd() * 0.7, 10, 8), 0.18, rnd),
+        toon(0xfff8ef, { transparent: true, opacity: 0.95 }),
+      );
+      puff.position.set((p - puffs / 2) * 1.1, (rnd() - 0.5) * 0.5, (rnd() - 0.5) * 0.8);
+      cloud.add(puff);
+    }
+    cloud.userData = {
+      angle: rnd() * Math.PI * 2,
+      radius: 12.5 + rnd() * 2.5,
+      height: -2.5 - rnd() * 2.5,
+      speed: 0.03 + rnd() * 0.03,
+    };
+    scene.add(cloud);
+    clouds.push(cloud);
+  }
+
+  // 书架间的小灯串
+  const bulbs = [];
+  for (let i = 0; i < shelves.length; i += 1) {
+    const a = shelves[i];
+    const b = shelves[(i + 1) % shelves.length];
+    const ha = (a.userData.anchorY || 3) - 0.9;
+    const hb = (b.userData.anchorY || 3) - 0.9;
+    const start = new THREE.Vector3(a.position.x, deckTop + ha + 0.15, a.position.z);
+    const end = new THREE.Vector3(b.position.x, deckTop + hb + 0.15, b.position.z);
+    const mid = start.clone().add(end).multiplyScalar(0.5);
+    mid.y -= 0.9;
+    for (let t = 1; t <= 5; t += 1) {
+      const u = t / 6;
+      const p = new THREE.Vector3()
+        .addScaledVector(start, (1 - u) * (1 - u))
+        .addScaledVector(mid, 2 * (1 - u) * u)
+        .addScaledVector(end, u * u);
+      const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.07, 6, 6),
+        toon(0xfff1c9, { emissive: 0xffc98a, emissiveIntensity: 1.4 }),
+      );
+      bulb.position.copy(p);
+      island.add(bulb);
+      bulbs.push(bulb);
+    }
+  }
+
+  // 地毯上的坐垫
+  for (const [cx, cz, cc] of [
+    [1.9, 1.6, 0xf2b8c6],
+    [-2.1, -1.4, 0xbcd4e6],
+  ]) {
+    const cushion = new THREE.Mesh(fluffify(new THREE.SphereGeometry(0.55, 10, 8), 0.12, rnd), toon(cc));
+    cushion.scale.set(1, 0.42, 1);
+    cushion.position.set(cx, deckTop + 0.3, cz);
+    cushion.castShadow = true;
+    island.add(cushion);
   }
 
   // 轨道控制（手写球坐标）
@@ -833,6 +985,19 @@ function initScene(data, container) {
       chunk.position.set(Math.sin(a) * u.radius, u.height + Math.sin(elapsed * 0.6 + u.angle) * 0.3, Math.cos(a) * u.radius);
       chunk.rotation.y = elapsed * 0.2 + u.angle;
     }
+    for (const cloud of clouds) {
+      const u = cloud.userData;
+      const a = u.angle + elapsed * u.speed;
+      cloud.position.set(
+        Math.sin(a) * u.radius,
+        u.height + Math.sin(elapsed * 0.4 + u.angle) * 0.2,
+        Math.cos(a) * u.radius,
+      );
+    }
+    bulbs.forEach((bulb, i) => {
+      bulb.material.emissiveIntensity = reduced ? 1.2 : 1.1 + Math.sin(elapsed * 2 + i) * 0.5;
+    });
+    kbody.scale.y = 0.72 + (reduced ? 0 : Math.sin(elapsed * 1.6) * 0.025);
     if (!reduced) {
       const pos = dustGeo.attributes.position;
       for (let i = 0; i < pos.count; i += 1) {
