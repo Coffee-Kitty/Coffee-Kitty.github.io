@@ -1,0 +1,551 @@
+{
+  "generated": "2026-10-21",
+  "totalPosts": 79,
+  "categories": [
+    {
+      "id": "research/llm-agent",
+      "name": "LLM / Agent",
+      "group": "Research",
+      "color": "#c2603d",
+      "url": "/research/llm-agent/README.md",
+      "posts": [
+        {
+          "title": "SFT",
+          "url": "/research/llm-agent/models-data-evals/sft.md",
+          "date": "2025-03-30",
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "openmanus",
+          "url": "/research/llm-agent/agents/openmanus.md",
+          "date": "2025-03-11",
+          "sub": "agents"
+        },
+        {
+          "title": "agent-pro",
+          "url": "/research/llm-agent/agents/agent-pro.md",
+          "date": "2025-03-10",
+          "sub": "agents"
+        },
+        {
+          "title": "PentestAssistant",
+          "url": "/research/llm-agent/agents/pentestAssistant.md",
+          "date": "2025-03-10",
+          "sub": "agents"
+        },
+        {
+          "title": "PentestGPT",
+          "url": "/research/llm-agent/agents/PentestGPT.md",
+          "date": "2025-03-04",
+          "sub": "agents"
+        },
+        {
+          "title": "应用大模型",
+          "url": "/research/llm-agent/agents/%E5%BA%94%E7%94%A8%E5%A4%A7%E6%A8%A1%E5%9E%8B.md",
+          "date": null,
+          "sub": "agents"
+        },
+        {
+          "title": "大模型微调",
+          "url": "/research/llm-agent/models-data-evals/%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%BE%AE%E8%B0%83.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "tiny-universe",
+          "url": "/research/llm-agent/models-data-evals/tiny-universe.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "tiny-llm",
+          "url": "/research/llm-agent/models-data-evals/tiny-llm.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "representation-space",
+          "url": "/research/llm-agent/models-data-evals/representation-space.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "minimind学习",
+          "url": "/research/llm-agent/models-data-evals/minimind%E5%AD%A6%E4%B9%A0.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "langchain",
+          "url": "/research/llm-agent/agents/langchain.md",
+          "date": null,
+          "sub": "agents"
+        },
+        {
+          "title": "gate (batch_size, feature_nums, expert_total_number)",
+          "url": "/research/llm-agent/models-data-evals/game_to_moe.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "evalplus",
+          "url": "/research/llm-agent/models-data-evals/evalplus.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "The Hitchhiker’s Guide to Program Analysis: A Journey with Large Lang...",
+          "url": "/research/llm-agent/models-data-evals/LLIFT.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "Sentence-BERT",
+          "url": "/research/llm-agent/models-data-evals/Sentence-Bert.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "ROME",
+          "url": "/research/llm-agent/models-data-evals/rome.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "RAG",
+          "url": "/research/llm-agent/models-data-evals/RAG.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "Qwen2 代码简学",
+          "url": "/research/llm-agent/models-data-evals/Qwen2%E4%BB%A3%E7%A0%81%E5%AD%A6%E4%B9%A0.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "Qwen2 paper",
+          "url": "/research/llm-agent/models-data-evals/Qwen2%E8%AE%BA%E6%96%87.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "Qwen",
+          "url": "/research/llm-agent/models-data-evals/qwen.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "PIE 数据集",
+          "url": "/research/llm-agent/models-data-evals/PIE%20%E6%95%B0%E6%8D%AE%E9%9B%86.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "Llama",
+          "url": "/research/llm-agent/models-data-evals/llama.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "LLMBook",
+          "url": "/research/llm-agent/models-data-evals/LLMBOOK.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "DINM",
+          "url": "/research/llm-agent/models-data-evals/DINM.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "Causality Analysis for Evaluating the Security of Large Language Models",
+          "url": "/research/llm-agent/models-data-evals/Casper.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "Agent学习",
+          "url": "/research/llm-agent/agents/agent.md",
+          "date": null,
+          "sub": "agents"
+        },
+        {
+          "title": "Adversarial Representation Engineering: A General Model Editing Frame...",
+          "url": "/research/llm-agent/models-data-evals/ARE.md",
+          "date": null,
+          "sub": "models-data-evals"
+        },
+        {
+          "title": "A Survey on Hallucination in Large Language Models: Principles, Taxon...",
+          "url": "/research/llm-agent/models-data-evals/%E5%B9%BB%E8%A7%89%E7%BB%BC%E8%BF%B0.md",
+          "date": null,
+          "sub": "models-data-evals"
+        }
+      ]
+    },
+    {
+      "id": "research/code-agent",
+      "name": "Code Agent",
+      "group": "Research",
+      "color": "#2f6f68",
+      "url": "/research/code-agent/README.md",
+      "posts": []
+    },
+    {
+      "id": "research/se-llm4se",
+      "name": "SE / LLM4SE",
+      "group": "Research",
+      "color": "#5b7db1",
+      "url": "/research/se-llm4se/README.md",
+      "posts": [
+        {
+          "title": "论文LLMDFA",
+          "url": "/research/se-llm4se/code-intelligence/llmdfa.md",
+          "date": null,
+          "sub": "code-intelligence"
+        },
+        {
+          "title": "论文 KNighter",
+          "url": "/research/se-llm4se/code-intelligence/knighter.md",
+          "date": null,
+          "sub": "code-intelligence"
+        },
+        {
+          "title": "llm4sa",
+          "url": "/research/se-llm4se/code-intelligence/llm4sa.md",
+          "date": null,
+          "sub": "code-intelligence"
+        },
+        {
+          "title": "empirial study",
+          "url": "/research/se-llm4se/code-intelligence/empirical.md",
+          "date": null,
+          "sub": "code-intelligence"
+        },
+        {
+          "title": "The Hitchhiker’s Guide to Program Analysis, Part II: Deep Thoughts by...",
+          "url": "/research/se-llm4se/code-intelligence/buglen.md",
+          "date": null,
+          "sub": "code-intelligence"
+        },
+        {
+          "title": "Minimizing False Positives in Static Bug Detection via LLM-Enhanced P...",
+          "url": "/research/se-llm4se/code-intelligence/llm4PFA.md",
+          "date": null,
+          "sub": "code-intelligence"
+        },
+        {
+          "title": "IRIS: LLM-assisted static analysis for detecting security vulnerabili...",
+          "url": "/research/se-llm4se/code-intelligence/iris.md",
+          "date": null,
+          "sub": "code-intelligence"
+        },
+        {
+          "title": "Blended Analysis for Predictive Execution",
+          "url": "/research/se-llm4se/code-intelligence/PredEx.md",
+          "date": null,
+          "sub": "code-intelligence"
+        }
+      ]
+    },
+    {
+      "id": "tech/ai-engineering",
+      "name": "AI Engineering",
+      "group": "Tech",
+      "color": "#d9a441",
+      "url": "/tech/ai-engineering/README.md",
+      "posts": [
+        {
+          "title": "显存估计",
+          "url": "/tech/ai-engineering/%E6%98%BE%E5%AD%98%E4%BC%B0%E8%AE%A1.md",
+          "date": "2025-03-31",
+          "sub": ""
+        },
+        {
+          "title": "ollama",
+          "url": "/tech/ai-engineering/ollama.md",
+          "date": "2025-03-12",
+          "sub": ""
+        },
+        {
+          "title": "破解深度学习",
+          "url": "/tech/ai-engineering/deep-learning/%E7%A0%B4%E8%A7%A3%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0.md",
+          "date": null,
+          "sub": "deep-learning"
+        },
+        {
+          "title": "标准化和归一化",
+          "url": "/tech/ai-engineering/deep-learning/%E6%A0%87%E5%87%86%E5%8C%96%E5%92%8C%E5%BD%92%E4%B8%80%E5%8C%96.md",
+          "date": null,
+          "sub": "deep-learning"
+        },
+        {
+          "title": "查看 LFS 文件指针（未下载时显示指针哈希）",
+          "url": "/tech/ai-engineering/vllm.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "创建 SiLU 激活函数",
+          "url": "/tech/ai-engineering/deep-learning/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0.md",
+          "date": null,
+          "sub": "deep-learning"
+        },
+        {
+          "title": "优化器",
+          "url": "/tech/ai-engineering/deep-learning/%E4%BC%98%E5%8C%96%E5%99%A8.md",
+          "date": null,
+          "sub": "deep-learning"
+        },
+        {
+          "title": "torch的mean和var",
+          "url": "/tech/ai-engineering/deep-learning/torch%E7%9A%84mean%E5%92%8Cvar.md",
+          "date": null,
+          "sub": "deep-learning"
+        },
+        {
+          "title": "VLLM",
+          "url": "/tech/ai-engineering/vllm-paper.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "BatchNorm、LayerNorm、RMSNorm",
+          "url": "/tech/ai-engineering/deep-learning/BatchNorm%E3%80%81LayerNorm%E3%80%81RMSNorm.md",
+          "date": null,
+          "sub": "deep-learning"
+        }
+      ]
+    },
+    {
+      "id": "tech/programming",
+      "name": "Programming",
+      "group": "Tech",
+      "color": "#7d8f4e",
+      "url": "/tech/programming/README.md",
+      "posts": [
+        {
+          "title": "设计模式",
+          "url": "/tech/programming/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F.md",
+          "date": "2025-04-15",
+          "sub": ""
+        },
+        {
+          "title": "PVZ",
+          "url": "/tech/programming/PVZ.md",
+          "date": "2025-04-15",
+          "sub": ""
+        },
+        {
+          "title": "编程语言",
+          "url": "/tech/programming/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "爬取bilibili综合热门榜及数据分析",
+          "url": "/tech/programming/python%E7%88%AC%E8%99%AB.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "python",
+          "url": "/tech/programming/python.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "intro",
+          "url": "/tech/programming/cpython/intro.md",
+          "date": null,
+          "sub": "cpython"
+        }
+      ]
+    },
+    {
+      "id": "tech/dev-tools",
+      "name": "Dev Tools",
+      "group": "Tech",
+      "color": "#8a6fa8",
+      "url": "/tech/dev-tools/README.md",
+      "posts": [
+        {
+          "title": "PlayWright",
+          "url": "/tech/dev-tools/playwright.md",
+          "date": "2025-05-19",
+          "sub": ""
+        },
+        {
+          "title": "search",
+          "url": "/tech/dev-tools/search.md",
+          "date": "2025-05-18",
+          "sub": ""
+        },
+        {
+          "title": "服务器ssh环境",
+          "url": "/tech/dev-tools/docker/docker%E9%85%8D%E7%BD%AEssh%E4%B8%8Ecode-server.md",
+          "date": "2025-03-22",
+          "sub": "docker"
+        },
+        {
+          "title": "vscode skill",
+          "url": "/tech/dev-tools/vscode%E6%8A%80%E5%B7%A7.md",
+          "date": "2025-03-22",
+          "sub": ""
+        },
+        {
+          "title": "docker配置dvwa",
+          "url": "/tech/dev-tools/docker/docker%E9%85%8D%E7%BD%AEdvwa.md",
+          "date": "2025-03-22",
+          "sub": "docker"
+        },
+        {
+          "title": "zsh",
+          "url": "/tech/dev-tools/zsh.md",
+          "date": "2025-03-11",
+          "sub": ""
+        },
+        {
+          "title": "注意默认就是在8888启动jupyter服务器",
+          "url": "/tech/dev-tools/docker/dokcer%E9%85%8D%E7%BD%AEjupter.md",
+          "date": null,
+          "sub": "docker"
+        },
+        {
+          "title": "docsify-upgrade",
+          "url": "/tech/dev-tools/docsify-upgrade.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "clash mihomo配置",
+          "url": "/tech/dev-tools/linux%E4%BB%A3%E7%90%86%E9%85%8D%E7%BD%AE.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "Typora",
+          "url": "/tech/dev-tools/Typora.md",
+          "date": null,
+          "sub": ""
+        }
+      ]
+    },
+    {
+      "id": "tech/algorithms",
+      "name": "Algorithms",
+      "group": "Tech",
+      "color": "#c25b7a",
+      "url": "/tech/algorithms/README.md",
+      "posts": [
+        {
+          "title": "链表、树与回溯",
+          "url": "/tech/algorithms/%E9%93%BE%E8%A1%A8%E6%A0%91%E4%B8%8E%E5%9B%9E%E6%BA%AF.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "贪心与思维",
+          "url": "/tech/algorithms/%E8%B4%AA%E5%BF%83%E4%B8%8E%E6%80%9D%E7%BB%B4.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "网格图",
+          "url": "/tech/algorithms/%E7%BD%91%E6%A0%BC%E5%9B%BE.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "灵茶山艾府算法题单总览",
+          "url": "/tech/algorithms/%E7%81%B5%E8%8C%B6%E5%B1%B1%E8%89%BE%E5%BA%9C%E7%AE%97%E6%B3%95%E9%A2%98%E5%8D%95%E6%80%BB%E8%A7%88.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "滑动窗口与双指针",
+          "url": "/tech/algorithms/%E6%BB%91%E5%8A%A8%E7%AA%97%E5%8F%A3%E4%B8%8E%E5%8F%8C%E6%8C%87%E9%92%88.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "数学算法",
+          "url": "/tech/algorithms/%E6%95%B0%E5%AD%A6%E7%AE%97%E6%B3%95.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "常用数据结构",
+          "url": "/tech/algorithms/%E5%B8%B8%E7%94%A8%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "字符串",
+          "url": "/tech/algorithms/%E5%AD%97%E7%AC%A6%E4%B8%B2.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "图论算法",
+          "url": "/tech/algorithms/%E5%9B%BE%E8%AE%BA%E7%AE%97%E6%B3%95.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "动态规划",
+          "url": "/tech/algorithms/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "位运算",
+          "url": "/tech/algorithms/%E4%BD%8D%E8%BF%90%E7%AE%97.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "二分算法",
+          "url": "/tech/algorithms/%E4%BA%8C%E5%88%86%E7%AE%97%E6%B3%95.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "lchot100",
+          "url": "/tech/algorithms/lchot100.md",
+          "date": null,
+          "sub": ""
+        }
+      ]
+    },
+    {
+      "id": "tech/cs-courses",
+      "name": "CS Courses",
+      "group": "Tech",
+      "color": "#8f6b4a",
+      "url": "/tech/cs-courses/README.md",
+      "posts": [
+        {
+          "title": "设计数据密集型应用",
+          "url": "/tech/cs-courses/distributed-systems/%E8%AE%BE%E8%AE%A1%E6%95%B0%E6%8D%AE%E5%AF%86%E9%9B%86%E5%9E%8B%E5%BA%94%E7%94%A8.md",
+          "date": null,
+          "sub": "distributed-systems"
+        },
+        {
+          "title": "计算机导论",
+          "url": "/tech/cs-courses/computer-intro.md",
+          "date": null,
+          "sub": ""
+        },
+        {
+          "title": "nju Static Program Analysis",
+          "url": "/tech/cs-courses/program-analysis/nju-static-analysis/%E9%9D%99%E6%80%81%E7%A8%8B%E5%BA%8F%E5%88%86%E6%9E%90.md",
+          "date": null,
+          "sub": "program-analysis/nju-static-analysis"
+        }
+      ]
+    }
+  ]
+}

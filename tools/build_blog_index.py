@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import re
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote
 
 
@@ -25,8 +27,8 @@ CREATE_DATE = re.compile(r"@Date:\s*(\d{4})[-/](\d{1,2})[-/](\d{1,2})")
 def as_date(match: re.Match[str] | None) -> dt.date | None:
     if not match:
         return None
-    year, month, day = (int(match.group(i)) for i in range(1, 4))
     try:
+        year, month, day = (int(match.group(i)) for i in (1, 2, 3))
         return dt.date(year, month, day)
     except ValueError:
         return None
@@ -127,13 +129,76 @@ def render_grouped_pages(
     return "\n".join(lines)
 
 
+CATEGORY_META = [
+    ("research/llm-agent", "LLM / Agent", "Research", "#c2603d"),
+    ("research/code-agent", "Code Agent", "Research", "#2f6f68"),
+    ("research/se-llm4se", "SE / LLM4SE", "Research", "#5b7db1"),
+    ("tech/ai-engineering", "AI Engineering", "Tech", "#d9a441"),
+    ("tech/programming", "Programming", "Tech", "#7d8f4e"),
+    ("tech/dev-tools", "Dev Tools", "Tech", "#8a6fa8"),
+    ("tech/algorithms", "Algorithms", "Tech", "#c25b7a"),
+    ("tech/cs-courses", "CS Courses", "Tech", "#8f6b4a"),
+]
+
+
+def collect_category_posts() -> list[dict[str, Any]]:
+    categories: list[dict[str, Any]] = []
+    for prefix, name, group, color in CATEGORY_META:
+        root = DOCS / prefix
+        posts: list[dict[str, Any]] = []
+        if root.is_dir():
+            for path in sorted(root.rglob("*.md")):
+                if path.name == "README.md":
+                    continue
+                text = read_text(path)
+                rel_dir = path.parent.relative_to(root).as_posix()
+                date = date_from_file(path, text)
+                posts.append(
+                    {
+                        "title": title_from_file(path, text),
+                        "url": docs_link(path),
+                        "date": date.isoformat() if date else None,
+                        "sub": "" if rel_dir == "." else rel_dir,
+                    }
+                )
+        posts.sort(
+            key=lambda item: (item["date"] is not None, item["date"] or "", item["title"]),
+            reverse=True,
+        )
+        categories.append(
+            {
+                "id": prefix,
+                "name": name,
+                "group": group,
+                "color": color,
+                "url": "/" + prefix + "/README.md",
+                "posts": posts,
+            }
+        )
+    return categories
+
+
+def write_site_graph(categories: list[dict[str, Any]]) -> None:
+    payload = {
+        "generated": dt.datetime.now(SHANGHAI).date().isoformat(),
+        "totalPosts": sum(len(cat["posts"]) for cat in categories),
+        "categories": categories,
+    }
+    target = DOCS / "assets" / "site-graph.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    _ = target.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
 def main() -> None:
     timeline = render_grouped_pages(
         "公开学习时间线",
         "按文件名或文章元信息中的日期自动汇总。只展示 Research 和 Tech 下的公开内容。",
         collect_dated_pages(),
     )
-    (DOCS / "timeline.md").write_text(timeline, encoding="utf-8")
+    _ = (DOCS / "timeline.md").write_text(timeline, encoding="utf-8")
+    write_site_graph(collect_category_posts())
 
 
 if __name__ == "__main__":

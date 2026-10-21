@@ -2,7 +2,7 @@
 
 > 按文件名或文章元信息中的日期自动汇总。只展示 Research 和 Tech 下的公开内容。
 
-> 自动生成于 2026-05-31。更新命令：`python3 tools/build_blog_index.py`。
+> 自动生成于 2026-10-21。更新命令：`python3 tools/build_blog_index.py`。
 
 共 15 篇。
 
