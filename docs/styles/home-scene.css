@@ -372,17 +372,7 @@
 /* 纸缘晕染，让岛体溶进纸面 */
 
 .home-hero .hero-scene::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  background: radial-gradient(
-    115% 92% at 62% 46%,
-    transparent 46%,
-    rgb(238 182 152 / 0.5) 74%,
-    rgb(238 182 152 / 0.95) 100%
-  );
+  display: none;
 }
 
 .home-hero .hero-copy h1 {
@@ -481,6 +471,13 @@
 
 /* 全页模式：图书馆占据整个页面，文案与图例叠加在场景上 */
 
+body:has(.home-hero) {
+  background:
+    radial-gradient(90% 62% at 68% 16%, rgb(255 246 219 / 0.95) 0%, rgb(255 246 219 / 0) 62%),
+    linear-gradient(180deg, #fdf3e3 0%, #f9ddc2 45%, #f3c3a4 78%, #eeb295 100%);
+  background-attachment: fixed;
+}
+
 .markdown-section:has(.home-hero) > div:first-child {
   display: none;
 }
@@ -510,9 +507,7 @@
   height: 100%;
   border: none;
   border-radius: 0;
-  background:
-    radial-gradient(90% 62% at 68% 16%, rgb(255 246 219 / 0.95) 0%, rgb(255 246 219 / 0) 62%),
-    linear-gradient(180deg, #fdf3e3 0%, #f9ddc2 45%, #f3c3a4 78%, #eeb295 100%);
+  background: transparent;
 }
 
 .home-hero .hero-scene canvas {
